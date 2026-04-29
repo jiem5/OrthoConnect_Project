@@ -20,9 +20,11 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME')
 
-# Validate required environment variables
+# Validate required environment variables (warn instead of crash for deployment flexibility)
 if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
-    raise ValueError("MAIL_USERNAME and MAIL_PASSWORD environment variables are required")
+    print("[WARNING] MAIL_USERNAME and MAIL_PASSWORD environment variables are not set. Email functionality will be disabled.")
+    app.config['MAIL_USERNAME'] = app.config['MAIL_USERNAME'] or 'placeholder@example.com'
+    app.config['MAIL_PASSWORD'] = app.config['MAIL_PASSWORD'] or 'placeholder'
 
 # --- SIMULATION MODE ---
 # Set to True to bypass real email sending (useful for testing/demo)
@@ -41,9 +43,11 @@ verification_requests = {}
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY')
 
-# Validate required Supabase credentials
+# Validate required Supabase credentials (warn instead of crash for deployment flexibility)
 if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-    raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required")
+    print("[WARNING] SUPABASE_URL and SUPABASE_ANON_KEY environment variables are not set. Database functionality will be limited.")
+    SUPABASE_URL = SUPABASE_URL or 'https://placeholder.supabase.co'
+    SUPABASE_ANON_KEY = SUPABASE_ANON_KEY or 'placeholder'
 
 def auto_check_reminders():
     """
