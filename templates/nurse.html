@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <!-- Security: Content Security Policy to defend against XSS and external script injection -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; connect-src 'self' https://ctoybxukmkcnwdeueorm.supabase.co wss://ctoybxukmkcnwdeueorm.supabase.co; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OrthoConnect — Nurse Portal</title>
+  <meta name="description" content="OrthoConnect Nurse Portal - Staff access for inventory, attendance, and more." />
+
+  <!-- Tailwind CSS -->
+  <script src="/vendor/tailwindcss.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="stylesheet" href="/static/css/nurse.css" />
+
+  <!-- Lucide Icons -->
+  <script src="/vendor/lucide.min.js"></script>
+
+  <!-- QRCode.js for Profile QR -->
+  <script src="/vendor/qrcode.min.js"></script>
+
+  <!-- html2pdf for exports -->
+  <script src="/vendor/html2pdf.bundle.min.js"></script>
+
+  <!-- Supabase JS client -->
+  <script src="/vendor/supabase.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="/vendor/chart.min.js"></script>
+
+  <style>
+
+
+    /* Ambient Mesh Background */
+    @keyframes ambientMesh {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .bg-ambient-mesh {
+      background: linear-gradient(-45deg, #f0fdfa, #ecfeff, #f8fafc, #ccfbf1, #f0f9ff);
+      background-size: 400% 400%;
+      animation: ambientMesh 15s ease infinite;
+    }
+
+    /* Floating Animation */
+    @keyframes floatGentle {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    .animate-float-gentle { animation: floatGentle 6s ease-in-out infinite; }
+    .preserve-3d { transform-style: preserve-3d; }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+    <!-- ===== TOP BAR ===== -->
+    <header class="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-slate-200">
+      <div class="px-3 py-2 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <button id="mobileMenuBtn" class="lg:hidden p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors" onclick="toggleMobileMenu()">
+            <i data-lucide="menu" class="w-5 h-5"></i>
+          </button>
+          <img src="ic_clinic_logo.png" alt="OrthoConnect Logo" class="h-9 w-9 rounded-full object-cover" />
+          <div>
+            <h1 class="text-base sm:text-lg font-semibold tracking-tight">OrthoConnect</h1>
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Dr. Ethelyn Regato-Perez Orthodental Clinic</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-3">
+          <span class="hidden lg:inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-teal-700">
+            Nurse Portal
+          </span>
+
+          <!-- Notification Bell (Nurse) -->
+          <div class="relative">
+            <button id="nurseNotifBellBtn"
+              class="relative p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 transition-all text-slate-600"
+              title="Notifications">
+              <i data-lucide="bell" class="w-4.5 h-4.5"></i>
+              <span id="nurseNotifBadge"
+                class="absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-black hidden">0</span>
+            </button>
+
+            <!-- Notification Dropdown Panel (Nurse) -->
+            <div id="nurseNotifDropdown"
+              class="hidden absolute right-0 top-full mt-2 w-[320px] sm:w-[380px] max-h-[480px] rounded-2xl border border-slate-200 bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
+              <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div>
+                  <h3 class="text-[12px] font-black text-slate-800 uppercase tracking-widest">Notifications</h3>
+                  <p class="text-[10px] text-slate-400 mt-0.5">Clinic updates & appointments</p>
+                </div>
+                <button id="nurseMarkAllReadBtn"
+                  class="text-[9px] font-black text-teal-600 uppercase tracking-widest hover:text-teal-700 transition-colors">Mark
+                  all read</button>
+              </div>
+              <div id="nurseNotifList" class="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scroll max-h-[350px]">
+                <div class="text-center py-8">
+                  <div class="w-10 h-10 bg-slate-50 rounded-xl mx-auto flex items-center justify-center mb-2">
+                    <i data-lucide="bell-off" class="w-5 h-5 text-slate-300"></i>
+                  </div>
+                  <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No notifications yet</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile & Logout Group -->
+          <div class="flex items-center gap-1.5 px-1.5 py-1 rounded-full bg-slate-50 border border-slate-200">
+            <button data-nurse-page="profile" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center text-white text-[10px] font-black shadow-sm" id="nurseInitialsBadge">--</div>
+              <span class="hidden sm:block text-[11px] font-bold text-slate-700 max-w-[90px] truncate" id="nurseNameLabel">Nurse</span>
+            </button>
+            <div class="w-[1px] h-4 bg-slate-200 mx-0.5"></div>
+            <button id="nurseLogoutBtnTop" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all" title="Logout">
+              <i data-lucide="log-out" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== EMAIL VERIFICATION MODAL ===== -->
+    <div id="nurseVerificationModal" class="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md hidden flex items-center justify-center p-4 transition-opacity duration-300">
+      <div class="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden transform scale-100 transition-transform duration-300" id="nurseVerificationModalInner">
+        <div class="p-8 text-center border-b border-slate-50 relative overflow-hidden">
+          <div class="absolute -top-6 -right-6 p-8 opacity-5">
+            <i data-lucide="mail-check" class="w-24 h-24 transform rotate-12"></i>
+          </div>
+          <div class="relative z-10 w-16 h-16 rounded-[20px] bg-teal-50 flex items-center justify-center mx-auto mb-4 border border-teal-100 shadow-inner">
+            <i data-lucide="mail" class="w-7 h-7 text-teal-500"></i>
+          </div>
+          <h3 class="text-[20px] font-black tracking-tight text-slate-800">Email Verification</h3>
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Security Authentication</p>
+        </div>
+        <div class="p-8 pb-6">
+          <p class="text-sm font-medium text-slate-600 text-center leading-relaxed">
+            For security purposes, you must verify your email address to log in. 
+            We have <strong>sent a verification link</strong> to your inbox via Supabase SMTP.
+          </p>
+          <div class="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-3">
+            <i data-lucide="loader-2" class="w-4 h-4 text-teal-500 animate-spin"></i>
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Waiting for confirmation...</p>
+          </div>
+        </div>
+        <div class="p-6 pt-0">
+          <button onclick="closeNurseVerificationModal()" class="w-full py-4 rounded-[16px] bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all shadow-sm active:scale-95">
+            Cancel Login
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MAIN CONTENT WRAPPER ===== -->
+    <main id="nurseMainContent" class="hidden flex-1 flex flex-row">
+      
+      <!-- Mobile Sidebar Backdrop -->
+      <div id="mobileSidebarBackdrop" class="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm transition-opacity hidden opacity-0 lg:hidden" onclick="toggleMobileMenu()"></div>
+      <!-- ===== SIDEBAR ===== -->
+      <aside id="nurseSidebar" class="w-64 shrink-0 rounded-none border-r border-slate-200/60 bg-white shadow-none flex flex-col z-50 transition-all duration-300 fixed inset-y-0 left-0 transform -translate-x-[120%] opacity-0 lg:opacity-100 lg:translate-x-0 lg:static lg:h-[calc(100vh-56px)] lg:sticky lg:top-[56px]">
+
+
+        <!-- Logo & Brand (Optional, can be hidden if same as Top Bar) -->
+        <div class="mb-4 flex items-center gap-3 px-4 py-4 border-b border-slate-50 bg-slate-50/30">
+          <div class="relative shrink-0">
+            <div id="sidebarNurseAvatar" class="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 border border-teal-100 flex items-center justify-center text-white font-black text-[11px] shadow-sm shadow-teal-500/10">
+              --
+            </div>
+            <div class="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white bg-emerald-500"></div>
+          </div>
+          <div class="leading-tight flex-1 min-w-0 sidebar-brand-text">
+            <p class="text-[12px] font-black uppercase tracking-widest text-slate-800 truncate">OrthoConnect</p>
+            <span class="inline-flex items-center gap-1 text-[9px] font-black text-teal-600 uppercase tracking-tighter mt-0.5 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-100/50">
+              Staff
+            </span>
+          </div>
+          <button class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" onclick="toggleMobileMenu()">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <nav class="flex-1 space-y-0.5 overflow-y-auto nurse-scroll px-3 pb-6 mt-2">
+          <div class="px-2">
+
+            <!-- Operations Section -->
+            <div class="mb-1">
+              <button onclick="toggleNurseSubMenu('menu-operations', 'icon-operations')" class="w-full flex items-center justify-between px-3 py-2 group rounded-xl hover:bg-slate-50 transition-all">
+                <span class="text-[10px] font-black text-slate-400 group-hover:text-teal-600 uppercase tracking-widest transition-colors flex items-center gap-2"><i data-lucide="briefcase" class="w-3.5 h-3.5"></i> Operations</span>
+                <i data-lucide="chevron-down" id="icon-operations" class="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-600 transition-transform rotate-180"></i>
+              </button>
+              <div id="menu-operations" class="mt-1 space-y-0.5 px-1 transition-all duration-300">
+                <button data-nurse-page="inventory" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
+                  <i data-lucide="package" class="w-3.5 h-3.5 opacity-70"></i> <span>Inventory</span>
+                </button>
+                <button data-nurse-page="schedule" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
+                  <i data-lucide="calendar-clock" class="w-3.5 h-3.5 opacity-70"></i> <span>Schedule</span>
+                </button>
+                <button data-nurse-page="my-attendance" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
+                  <i data-lucide="scan-line" class="w-3.5 h-3.5 opacity-70"></i> <span>My Attendance</span>
+                </button>
+                <button data-nurse-page="my-payroll" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
+                  <i data-lucide="banknote" class="w-3.5 h-3.5 opacity-70"></i> <span>My Payroll</span>
+                </button>
+                <button data-nurse-page="leave-management" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
+                  <i data-lucide="calendar-off" class="w-3.5 h-3.5 opacity-70"></i> <span>Leave Management</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="my-3 border-t border-slate-100/60 mx-3"></div>
+
+            <!-- System Section -->
+            <div class="mb-1">
+              <button onclick="toggleNurseSubMenu('menu-system', 'icon-system')" class="w-full flex items-center justify-between px-3 py-2 group rounded-xl hover:bg-slate-50 transition-all">
+                <span class="text-[10px] font-black text-slate-400 group-hover:text-teal-600 uppercase tracking-widest transition-colors flex items-center gap-2"><i data-lucide="settings-2" class="w-3.5 h-3.5"></i> System</span>
+                <i data-lucide="chevron-down" id="icon-system" class="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-600 transition-transform"></i>
+              </button>
+              <div id="menu-system" class="mt-1 space-y-0.5 px-1 transition-all duration-300 hidden">
+                <button data-nurse-page="profile" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
+                  <i data-lucide="user-circle" class="w-3.5 h-3.5 opacity-70"></i> <span>My Profile</span>
+                </button>
+                <button data-nurse-page="settings" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
+                  <i data-lucide="settings" class="w-3.5 h-3.5 opacity-70"></i> <span>Settings</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        <!-- Sidebar Footer -->
+        <div class="p-4 border-t border-slate-100 mt-auto">
+          <button id="nurseLogoutBtnSidebar" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-50 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:bg-red-50 hover:text-red-600 border border-slate-200/60 transition-all group">
+            <i data-lucide="power" class="w-3.5 h-3.5 group-hover:scale-110 transition-transform"></i>
+            <span>Logout Session</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- ===== CONTENT AREA ===== -->
+      <div id="nursePageSectionsWrapper" class="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-6">
+        
+        <!-- ==================== PROFILE PAGE ==================== -->
+        <section id="nurse-page-profile" class="space-y-3 hidden nurse-page-section">
+          <div class="rounded-[20px] bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-700 p-5 text-white shadow-lg shadow-teal-500/20 mb-1 relative overflow-hidden group">
+            <div class="absolute -top-6 -right-6 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
+              <i data-lucide="user-circle" class="w-32 h-32 transform rotate-12"></i>
+            </div>
+            <div class="relative z-10">
+              <div class="flex items-center gap-3 mb-0.5">
+                <div class="w-11 h-11 rounded-[16px] bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-inner border border-white/20">
+                  <i data-lucide="user-circle" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                  <h1 class="text-lg font-black tracking-tight leading-none">Account Profile</h1>
+                  <p class="text-teal-50 text-[12px] font-medium opacity-90 mt-1">Identity and attendance badge</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col xl:flex-row items-center xl:items-start gap-6">
+            <!-- Profile Info Card -->
+            <div class="w-full xl:flex-1 rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl p-6 shadow shadow-slate-200/40">
+              <h3 class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">
+                <i data-lucide="id-card" class="w-3.5 h-3.5 text-teal-500"></i> Staff Information
+              </h3>
+              <div class="space-y-4" id="nurseProfileInfo">
+                <p class="text-[12px] text-slate-400">Loading profile...</p>
+              </div>
+            </div>
+
+            <!-- QR Flip Card -->
+            <div class="w-full xl:w-[320px] lg:flex-shrink-0 flex justify-center">
+              <div class="nurse-profile-flip" id="nurseProfileFlip" onclick="this.classList.toggle('flipped')">
+                <div class="nurse-profile-flip-inner">
+                  <!-- Front -->
+                  <div class="nurse-profile-flip-front flex flex-col items-center justify-center p-6 text-white text-center">
+                    <div id="profileFlipAvatar" class="w-20 h-20 rounded-[24px] bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl font-black text-white border border-white/20 shadow-inner mb-4">
+                      --
+                    </div>
+                    <h3 id="profileFlipName" class="text-lg font-black tracking-tight">Staff Name</h3>
+                    <p id="profileFlipRole" class="text-[10px] font-bold text-teal-200 uppercase tracking-widest mt-1">Nurse</p>
+                    <p id="profileFlipSpecialty" class="text-xs font-medium text-white/60 mt-2">Orthodontics</p>
+                    <div class="flex items-center gap-1.5 mt-6 opacity-70">
+                      <i data-lucide="rotate-3d" class="w-3.5 h-3.5"></i>
+                      <span class="text-[9px] font-bold uppercase tracking-widest">Tap to view QR Code</span>
+                    </div>
+                  </div>
+                  <!-- Back -->
+                  <div class="nurse-profile-flip-back flex flex-col items-center justify-center p-6 text-center">
+                    <div class="absolute inset-0 opacity-[0.03]" style="background-image: radial-gradient(circle at 1px 1px, white 1px, transparent 0); background-size: 20px 20px;"></div>
+                    <div class="relative bg-white rounded-2xl p-3 shadow-2xl shadow-teal-500/10 border border-white/20 mb-3">
+                      <div id="qrActiveIndicator" class="absolute -top-1 -right-1 z-30 hidden">
+                        <span class="relative flex h-3 w-3">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        </span>
+                      </div>
+                      <div id="nurseProfileQR" class="nurse-qr-container"></div>
+                    </div>
+                    <p class="text-[9px] font-bold text-slate-500 uppercase tracking-[3px] mt-2">OrthoConnect • Staff Badge</p>
+                    <div class="flex items-center gap-2 mt-4 relative z-20">
+                      <button class="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 text-[10px] font-black text-white uppercase tracking-widest shadow-lg shadow-teal-500/30 transition-all active:scale-95 group" onclick="event.stopPropagation(); openFullQR()">
+                        <i data-lucide="maximize" class="w-3.5 h-3.5 group-hover:scale-110 transition-transform"></i> Full View
+                      </button>
+                    </div>
+                    <div class="flex items-center gap-1.5 mt-3 opacity-60">
+                      <i data-lucide="undo-2" class="w-3 h-3 text-slate-400"></i>
+                      <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Tap to flip back</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== MY ATTENDANCE ==================== -->
+        <section id="nurse-page-my-attendance" class="space-y-3 hidden nurse-page-section">
+          <div class="rounded-[20px] bg-gradient-to-br from-cyan-500 via-teal-600 to-emerald-700 p-5 text-white shadow-lg shadow-teal-500/20 mb-1 relative overflow-hidden group">
+            <div class="absolute -top-6 -right-6 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
+              <i data-lucide="scan-line" class="w-32 h-32 transform rotate-12"></i>
+            </div>
+            <div class="relative z-10">
+              <div class="flex items-center gap-3 mb-0.5">
+                <div class="w-11 h-11 rounded-[16px] bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-inner border border-white/20">
+                  <i data-lucide="scan-line" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                  <h1 class="text-lg font-black tracking-tight leading-none">Attendance</h1>
+                  <p class="text-teal-50 text-[12px] font-medium opacity-90 mt-1">Clock-in/out records and history</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats (Compact) -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="rounded-[20px] border border-white/40 bg-white/70 backdrop-blur-xl p-4 shadow shadow-slate-200/40">
+              <div class="flex items-center gap-2 mb-1.5">
+                <div class="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center"><i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i></div>
+                <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Present</span>
+              </div>
+              <p id="myAttPresent" class="text-2xl font-black text-emerald-600 tabular-nums leading-none">0</p>
+            </div>
+            <div class="rounded-[20px] border border-white/40 bg-white/70 backdrop-blur-xl p-4 shadow shadow-slate-200/40">
+              <div class="flex items-center gap-2 mb-1.5">
+                <div class="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center"><i data-lucide="clock-4" class="w-3.5 h-3.5 text-amber-600"></i></div>
+                <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Late</span>
+              </div>
+              <p id="myAttLate" class="text-2xl font-black text-amber-500 tabular-nums leading-none">0</p>
+            </div>
+            <div class="rounded-[20px] border border-white/40 bg-white/70 backdrop-blur-xl p-4 shadow shadow-slate-200/40">
+              <div class="flex items-center gap-2 mb-1.5">
+                <div class="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-red-500"></i></div>
+                <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Absent</span>
+              </div>
+              <p id="myAttAbsent" class="text-2xl font-black text-red-500 tabular-nums leading-none">0</p>
+            </div>
+            <div class="rounded-[20px] border border-white/40 bg-white/70 backdrop-blur-xl p-4 shadow shadow-slate-200/40">
+              <div class="flex items-center gap-2 mb-1.5">
+                <div class="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center"><i data-lucide="calendar-off" class="w-3.5 h-3.5 text-violet-500"></i></div>
+                <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Leave</span>
+              </div>
+              <p id="myAttLeave" class="text-2xl font-black text-violet-500 tabular-nums leading-none">0</p>
+            </div>
+          </div>
+
+          <!-- Attendance Table -->
+          <div class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl shadow-lg shadow-slate-200/40 overflow-hidden">
+            <div class="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="text-sm font-black text-slate-800 flex items-center gap-2">
+                <i data-lucide="list-checks" class="w-4 h-4 text-teal-500"></i> Attendance Log
+                <span id="myAttCount" class="px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-[10px] font-black uppercase tracking-widest">0 Records</span>
+              </h3>
+              <div class="flex items-center gap-2">
+                <input type="date" id="myAttFilterDate" class="bg-slate-50/80 border border-slate-200 rounded-2xl py-2 px-3 text-[12px] font-medium focus:ring-2 focus:ring-teal-500/20 focus:bg-white focus:border-teal-400 transition-all outline-none" />
+                <button id="nurseExportAttBtn" class="flex items-center gap-2 bg-teal-50 text-teal-600 px-3 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-teal-100 transition-colors">
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i> Export PDF
+                </button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-[12px]">
+                <thead class="bg-slate-50/80 whitespace-nowrap">
+                  <tr>
+                    <th class="text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Date</th>
+                    <th class="text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Clock In</th>
+                    <th class="text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Clock Out</th>
+                    <th class="text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Hours</th>
+                    <th class="text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="myAttBody">
+                  <tr>
+                    <td colspan="5" class="text-center py-12">
+                      <div class="flex flex-col items-center gap-3">
+                        <div class="w-14 h-14 rounded-[20px] bg-teal-50 flex items-center justify-center">
+                          <i data-lucide="scan-line" class="w-7 h-7 text-teal-300"></i>
+                        </div>
+                        <p class="text-sm font-black text-slate-600">Loading attendance records...</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== MY PAYROLL ==================== -->
+        <section id="nurse-page-my-payroll" class="space-y-3 hidden nurse-page-section">
+          <div class="rounded-[20px] bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-700 p-5 text-white shadow-lg shadow-violet-500/20 mb-1 relative overflow-hidden group">
+            <div class="absolute -top-6 -right-6 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
+              <i data-lucide="banknote" class="w-32 h-32 transform rotate-12"></i>
+            </div>
+            <div class="relative z-10">
+              <div class="flex items-center gap-3 mb-0.5">
+                <div class="w-11 h-11 rounded-[16px] bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-inner border border-white/20">
+                  <i data-lucide="banknote" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                  <h1 class="text-lg font-black tracking-tight leading-none">Payroll</h1>
+                  <p class="text-violet-50 text-[12px] font-medium opacity-90 mt-1">Salary history and computations</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl shadow-lg shadow-slate-200/40 overflow-hidden">
+            <!-- Live Computation Summary -->
+            <div class="p-5 border-b border-slate-100 bg-violet-50/30">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-2xl bg-violet-100 flex items-center justify-center text-violet-600 shadow-sm">
+                    <i data-lucide="calculator" class="w-5 h-5"></i>
+                  </div>
+                  <div>
+                    <p class="text-[10px] font-black uppercase tracking-widest text-violet-500">Live Period Computation</p>
+                    <h4 class="text-sm font-black text-slate-800" id="livePayPeriodLabel">Current Month Breakdown</h4>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1 md:max-w-xl">
+                  <div class="bg-white/60 p-3 rounded-2xl border border-white">
+                    <p class="text-[9px] font-black text-slate-400 uppercase">Worked Hrs</p>
+                    <p class="text-sm font-black text-slate-700" id="livePayHours">0.0h</p>
+                  </div>
+                  <div class="bg-white/60 p-3 rounded-2xl border border-white">
+                    <p class="text-[9px] font-black text-slate-400 uppercase">Attendance</p>
+                    <p class="text-sm font-black text-emerald-600"><span id="livePayPresent">0</span> <span class="text-[9px] opacity-60">P</span> / <span id="livePayLate" class="text-amber-500">0</span> <span class="text-[9px] opacity-60">L</span></p>
+                  </div>
+                  <div class="bg-white/60 p-3 rounded-2xl border border-white">
+                    <p class="text-[9px] font-black text-slate-400 uppercase">Deductions</p>
+                    <p class="text-sm font-black text-rose-500" id="livePayDeductions">₱0</p>
+                  </div>
+                  <div class="bg-white/60 p-3 rounded-2xl border border-violet-200 bg-gradient-to-br from-white to-violet-50">
+                    <p class="text-[9px] font-black text-violet-500 uppercase">Est. Salary</p>
+                    <p class="text-sm font-black text-violet-700" id="livePayTotal">₱0.00</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="text-sm font-black text-slate-800 flex items-center gap-2">
+                <i data-lucide="receipt" class="w-4 h-4 text-violet-500"></i> Finalized Payroll History
+                <span id="myPayCount" class="px-3 py-1 bg-violet-50 text-violet-700 rounded-full text-[10px] font-black uppercase tracking-widest">0 Records</span>
+              </h3>
+              <button id="nurseExportPayBtn" class="flex items-center gap-2 bg-violet-50 text-violet-600 px-3 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-violet-100 transition-colors">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i> Export PDF
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-[12px]">
+                <thead class="bg-slate-50/80 whitespace-nowrap">
+                  <tr>
+                    <th class="text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Period</th>
+                    <th class="text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Base Pay</th>
+                    <th class="text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Deductions</th>
+                    <th class="text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Net Pay</th>
+                    <th class="text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="myPayBody">
+                  <tr>
+                    <td colspan="5" class="text-center py-12">
+                      <div class="flex flex-col items-center gap-3">
+                        <div class="w-14 h-14 rounded-[20px] bg-violet-50 flex items-center justify-center">
+                          <i data-lucide="banknote" class="w-7 h-7 text-violet-300"></i>
+                        </div>
+                        <p class="text-sm font-black text-slate-600">Loading payroll records...</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== LEAVE MANAGEMENT ==================== -->
+        <section id="nurse-page-leave-management" class="space-y-3 hidden nurse-page-section">
+          <div class="rounded-[20px] bg-gradient-to-br from-rose-400 via-pink-500 to-fuchsia-600 p-5 text-white shadow-lg shadow-pink-500/20 mb-1 relative overflow-hidden group">
+            <div class="absolute -top-6 -right-6 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
+              <i data-lucide="calendar-off" class="w-32 h-32 transform rotate-12"></i>
+            </div>
+            <div class="relative z-10">
+              <div class="flex items-center gap-3 mb-0.5">
+                <div class="w-11 h-11 rounded-[16px] bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-inner border border-white/20">
+                  <i data-lucide="calendar-off" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                  <h1 class="text-lg font-black tracking-tight leading-none">Leave Management</h1>
+                  <p class="text-pink-100 text-[12px] font-medium opacity-90 mt-1">File requests and track balance</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col xl:flex-row gap-4">
+            <!-- Left: Leave Form -->
+            <div class="flex-1 space-y-4">
+              <div class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl p-6 shadow-lg shadow-slate-200/40">
+                <h3 class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500 mb-5">
+                  <i data-lucide="file-plus" class="w-4 h-4 text-pink-500"></i> File Leave Request
+                </h3>
+                <form id="nurseLeaveForm" class="space-y-4">
+                  <div class="space-y-2">
+                    <label for="nurseLeaveDate" class="text-[10px] font-black uppercase tracking-widest text-slate-500">Leave Date</label>
+                    <input type="date" id="nurseLeaveDate" class="w-full bg-slate-50/80 border border-slate-200 rounded-2xl py-2.5 px-4 text-sm font-medium focus:ring-2 focus:ring-pink-500/20 focus:bg-white focus:border-pink-400 transition-all outline-none" required />
+                  </div>
+                  <div class="space-y-2">
+                    <div class="flex justify-between items-center px-1">
+                      <label for="nurseLeaveReason" class="text-[10px] font-black uppercase tracking-widest text-slate-500">Reason (Required)</label>
+                      <div class="text-[10px] font-bold text-slate-400"><span id="reasonCharCount">0</span>/300</div>
+                    </div>
+                    <textarea id="nurseLeaveReason" maxlength="300" required placeholder="Enter exact reason for leave..." class="w-full bg-slate-50/80 border border-slate-200 rounded-2xl py-2.5 px-4 text-sm font-medium focus:ring-2 focus:ring-pink-500/20 focus:bg-white focus:border-pink-400 transition-all outline-none resize-none h-24 max-w-full"></textarea>
+                  </div>
+                  <div class="space-y-2">
+                    <label for="nurseLeaveFile" class="text-[10px] font-black uppercase tracking-widest text-slate-500">Attachment (Docs/Images)</label>
+                    <input type="file" id="nurseLeaveFile" accept=".png,.jpg,.jpeg,.pdf,.doc,.docx" class="w-full bg-slate-50/80 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:bg-pink-100 file:text-pink-600 hover:file:bg-pink-200 text-sm font-medium text-slate-500 border border-slate-200 rounded-2xl p-1 cursor-pointer transition-all outline-none" />
+                    <p class="text-[9px] text-slate-400 mt-1 italic pl-1">Attach medical certificates, letters, or related files if any.</p>
+                  </div>
+                  <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-600 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-pink-500/30 hover:shadow-pink-500/50 transition-all active:scale-95">
+                    <i data-lucide="send" class="w-4 h-4"></i> Submit Leave Request
+                  </button>
+                </form>
+
+                <!-- Leave Balance -->
+                <div id="nurseLeaveBalance" class="mt-6 pt-5 border-t border-slate-100"></div>
+
+                <!-- Leave Policy -->
+                <div class="mt-5 p-4 bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl border border-pink-100">
+                  <p class="text-[10px] font-black uppercase tracking-widest text-pink-600 mb-2">📋 Leave Policy</p>
+                  <ul class="text-[11px] font-medium text-slate-600 leading-relaxed space-y-1 pl-4 list-disc">
+                    <li>Maximum <strong>3 leave days</strong> per month</li>
+                    <li>File in advance when possible</li>
+                    <li>Exceeding the limit will be flagged</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Leave Records -->
+            <div class="w-full xl:w-[400px] shrink-0">
+              <div class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl p-5 shadow-lg shadow-slate-200/40">
+                <h3 class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500 mb-4">
+                  <i data-lucide="list" class="w-4 h-4 text-pink-500"></i> My Leave Records
+                </h3>
+                <div id="nurseLeaveRecords" class="space-y-2 max-h-[500px] overflow-y-auto nurse-scroll pr-1">
+                  <p class="text-sm text-slate-400 text-center py-8">Loading leave records...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+
+
+
+        <!-- ==================== SETTINGS (Compact) ==================== -->
+        <section id="nurse-page-settings" class="space-y-3 hidden nurse-page-section">
+          <div class="rounded-[24px] bg-gradient-to-br from-amber-400 via-orange-500 to-orange-600 p-6 text-white shadow-xl shadow-orange-500/20 mb-2 relative overflow-hidden group">
+            <div class="absolute -top-6 -right-6 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
+              <i data-lucide="settings" class="w-32 h-32 transform rotate-12"></i>
+            </div>
+            <div class="relative z-10">
+              <div class="flex items-center gap-3 mb-0.5">
+                <div class="w-12 h-12 rounded-[18px] bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-inner border border-white/20">
+                  <i data-lucide="settings" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                  <h1 class="text-xl font-black tracking-tight leading-none">Settings</h1>
+                  <p class="text-amber-50 text-[12px] font-medium opacity-90 mt-1">Manage portal preferences and security</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl p-4 shadow-lg shadow-slate-200/40">
+            <h3 class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">
+              <i data-lucide="info" class="w-3.5 h-3.5 text-orange-500"></i> Clinic Information
+            </h3>
+            <div id="nurseSettingsInfo" class="space-y-4">
+              <p class="text-[12px] text-slate-400">Loading clinic settings...</p>
+            </div>
+          </div>
+
+          <!-- Professional Security Section (Compact) -->
+          <div class="rounded-[24px] border border-white/60 bg-white/70 backdrop-blur-xl shadow-lg shadow-slate-200/40 overflow-hidden">
+            <div class="flex flex-col lg:flex-row">
+              <!-- Left: Instructions/Info -->
+              <div class="lg:w-[30%] bg-slate-50/50 p-6 border-b lg:border-b-0 lg:border-r border-slate-100">
+                <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 mb-3 shadow-sm">
+                  <i data-lucide="shield-check" class="w-5 h-5"></i>
+                </div>
+                <h3 class="text-base font-black text-slate-800 tracking-tight mb-2">Security Settings</h3>
+                <p class="text-[11.5px] text-slate-500 font-medium leading-relaxed">
+                  Protect your account with a strong password (mix of letters, numbers, and symbols).
+                </p>
+                <div class="mt-6 space-y-3">
+                  <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Auth Required</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Instant Update</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: The Form -->
+              <div class="lg:w-[70%] p-6">
+                <form id="nurseChangePasswordForm" class="space-y-4">
+                  <!-- Current Password -->
+                  <div class="space-y-1.5">
+                    <label class="text-[9px] font-bold uppercase tracking-[1.5px] text-slate-400 ml-1">Current Password</label>
+                    <div class="relative group">
+                      <input type="password" id="currentNursePassword" placeholder="Enter current password" 
+                        class="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-[13px] font-medium focus:ring-4 focus:ring-amber-500/10 focus:border-amber-400 outline-none transition-all" required />
+                      <i data-lucide="key-round" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-amber-500 transition-colors"></i>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- New Password -->
+                    <div class="space-y-1.5">
+                      <label class="text-[9px] font-bold uppercase tracking-[1.5px] text-slate-400 ml-1">New Password</label>
+                      <div class="relative group">
+                        <input type="password" id="newNursePassword" placeholder="Min 6 chars" 
+                          class="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-[13px] font-medium focus:ring-4 focus:ring-amber-500/10 focus:border-amber-400 outline-none transition-all" required />
+                        <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-amber-500 transition-colors"></i>
+                      </div>
+                    </div>
+
+                    <!-- Confirm New -->
+                    <div class="space-y-1.5">
+                      <label class="text-[9px] font-bold uppercase tracking-[1.5px] text-slate-400 ml-1">Confirm New</label>
+                      <div class="relative group">
+                        <input type="password" id="confirmNursePassword" placeholder="Repeat new" 
+                          class="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-[13px] font-medium focus:ring-4 focus:ring-amber-500/10 focus:border-amber-400 outline-none transition-all" required />
+                        <i data-lucide="check-check" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-amber-500 transition-colors"></i>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-4">
+                    <p class="text-[10px] text-slate-400 font-medium italic">Active session will be preserved.</p>
+                    <button type="submit" class="inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 active:scale-95 transition-all">
+                      Update <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-amber-500"></i>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="nurse-page-inventory" class="space-y-3 hidden nurse-page-section">
+            <div class="rounded-[20px] bg-gradient-to-br from-amber-500 via-yellow-600 to-orange-600 p-5 text-white shadow-lg shadow-amber-500/20 mb-1 relative overflow-hidden group">
+              <div class="absolute -top-6 -right-6 p-6 opacity-10"><i data-lucide="package" class="w-32 h-32 transform rotate-12"></i></div>
+              <div class="relative z-10 flex items-center gap-3">
+                <div class="w-11 h-11 rounded-[16px] bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-inner border border-white/20"><i data-lucide="package" class="w-5 h-5 text-white"></i></div>
+                <div>
+                  <h1 class="text-lg font-black tracking-tight">Inventory</h1>
+                  <p class="text-amber-50 text-[12px] font-medium opacity-90 mt-1">Manage supplies and stock</p>
+                </div>
+              </div>
+            </div>
+            <div id="nurseInventoryContent" class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl p-5 shadow-lg">
+              <p class="text-sm text-slate-400 text-center py-12">Loading inventory...</p>
+            </div>
+          </section>
+
+          <!-- ==================== SCHEDULE / TIMETABLE ==================== -->
+          <section id="nurse-page-schedule" class="space-y-3 hidden nurse-page-section">
+            <div class="rounded-[20px] bg-gradient-to-br from-indigo-500 via-blue-600 to-cyan-600 p-5 text-white shadow-lg shadow-indigo-500/20 mb-1 relative overflow-hidden group">
+              <div class="absolute -top-6 -right-6 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                <i data-lucide="calendar-range" class="w-32 h-32 transform rotate-12"></i>
+              </div>
+              <div class="relative z-10">
+                <div class="flex items-center gap-3 mb-0.5">
+                  <div class="w-11 h-11 rounded-[16px] bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-inner border border-white/20">
+                    <i data-lucide="calendar-range" class="w-5 h-5 text-white"></i>
+                  </div>
+                  <div>
+                    <h1 class="text-lg font-black tracking-tight leading-none">Clinical Schedule</h1>
+                    <p class="text-indigo-50 text-[12px] font-medium opacity-90 mt-1">Daily timetable & appointment overview</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filters & Metrics Bar -->
+            <div class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl p-4 shadow-lg shadow-slate-200/40">
+              <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                <!-- Filters -->
+                <div class="flex flex-wrap items-center gap-3">
+                  <div class="flex items-center gap-2">
+                    <label class="text-[9px] font-black uppercase tracking-widest text-slate-400">Range</label>
+                    <select id="nurseScheduleRange" class="bg-slate-50/80 border border-slate-200 rounded-2xl py-2 px-3 text-[12px] font-medium focus:ring-2 focus:ring-indigo-500/20 focus:bg-white focus:border-indigo-400 transition-all outline-none">
+                      <option value="daily">Daily View</option>
+                      <option value="weekly">Weekly Matrix</option>
+                      <option value="monthly">Monthly Matrix</option>
+                      <option value="yearly">Yearly Overview</option>
+                    </select>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <label class="text-[9px] font-black uppercase tracking-widest text-slate-400">Date</label>
+                    <input type="date" id="nurseScheduleDate" class="bg-slate-50/80 border border-slate-200 rounded-2xl py-2 px-3 text-[12px] font-medium focus:ring-2 focus:ring-indigo-500/20 focus:bg-white focus:border-indigo-400 transition-all outline-none" />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <label class="text-[9px] font-black uppercase tracking-widest text-slate-400">Staff</label>
+                    <select id="nurseScheduleDoctor" class="bg-slate-50/80 border border-slate-200 rounded-2xl py-2 px-3 text-[12px] font-medium focus:ring-2 focus:ring-indigo-500/20 focus:bg-white focus:border-indigo-400 transition-all outline-none min-w-[160px]">
+                      <option value="">All Staff</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Metrics & Export -->
+                <div class="flex flex-wrap items-center gap-3">
+                  <div class="flex items-center gap-2 px-3 py-2 rounded-2xl bg-indigo-50 border border-indigo-100">
+                    <div class="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center"><i data-lucide="calendar-check" class="w-3.5 h-3.5 text-indigo-600"></i></div>
+                    <div>
+                      <p class="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Today</p>
+                      <p id="nurseTtMetricToday" class="text-sm font-black text-indigo-700 tabular-nums leading-none">0</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 px-3 py-2 rounded-2xl bg-emerald-50 border border-emerald-100">
+                    <div class="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center"><i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-600"></i></div>
+                    <div>
+                      <p class="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Active</p>
+                      <p id="nurseTtMetricActive" class="text-sm font-black text-emerald-700 tabular-nums leading-none">0</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 px-3 py-2 rounded-2xl bg-violet-50 border border-violet-100">
+                    <div class="w-6 h-6 rounded-lg bg-violet-100 flex items-center justify-center"><i data-lucide="users" class="w-3.5 h-3.5 text-violet-600"></i></div>
+                    <div>
+                      <p class="text-[8px] font-black text-violet-400 uppercase tracking-widest">Staff</p>
+                      <p id="nurseTtMetricStaff" class="text-sm font-black text-violet-700 tabular-nums leading-none">0</p>
+                    </div>
+                  </div>
+                  <button onclick="exportTimetablePDF('nurseScheduleContainer')" class="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Export
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Timetable Container (populated by JS) -->
+            <div id="nurseScheduleContainer" class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl shadow-lg shadow-slate-200/40">
+              <div class="py-12 text-center text-sm text-slate-400 flex flex-col items-center">
+                <i data-lucide="loader-2" class="w-8 h-8 text-indigo-500 mb-2 animate-spin"></i>
+                <span class="font-medium animate-pulse">Loading clinical timetable...</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Nurse Portal Social Footer -->
+          <footer class="w-full py-8 mt-12 mb-6 flex flex-col items-center justify-center gap-6 border-t border-slate-100">
+            <div class="flex flex-col items-center gap-3">
+              <p class="text-[10px] font-black uppercase tracking-[3px] text-slate-400">Follow Our Socials</p>
+              
+              <div class="flex items-center gap-12 mt-2">
+                <!-- Facebook Tooltip -->
+                <div class="tooltip-container brand-fb">
+                  <div class="tooltip">
+                    <div class="profile">
+                      <div class="user">
+                        <div class="img">OC</div>
+                        <div class="details">
+                          <div class="name">OrthoConnect</div>
+                          <div class="username">@orthoconnect_official</div>
+                        </div>
+                      </div>
+                      <div class="about">2.4k+ Followers • Support</div>
+                    </div>
+                  </div>
+                  <div class="text-label-wrapper">
+                    <a class="icon" href="https://facebook.com/orthoconnect" target="_blank">
+                      <div class="layer">
+                        <span></span><span></span><span></span><span></span>
+                        <span class="svg-wrap">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M18.896 12.553l.666-4.346h-4.17v-2.82c0-1.195.584-2.36 2.463-2.36h1.903V.333C19.64.301 18.914 0 17.587 0 14.814 0 13.005 1.68 13.005 4.714V8.207H9.182v4.346h3.823V24h4.721V12.553h3.17z" fill="#fff"></path>
+                          </svg>
+                        </span>
+                      </div>
+                      <div class="text-label">Facebook</div>
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Instagram Tooltip -->
+                <div class="tooltip-container brand-ig">
+                  <div class="tooltip">
+                    <div class="profile">
+                      <div class="user">
+                        <div class="img">OC</div>
+                        <div class="details">
+                          <div class="name">OrthoConnect</div>
+                          <div class="username">@orthoconnect_official</div>
+                        </div>
+                      </div>
+                      <div class="about">1.8k+ Followers • Gallery</div>
+                    </div>
+                  </div>
+                  <div class="text-label-wrapper">
+                    <a class="icon" href="https://instagram.com/orthoconnect" target="_blank">
+                      <div class="layer">
+                        <span></span><span></span><span></span><span></span>
+                        <span class="svg-wrap">
+                          <svg viewBox="0 0 448 512">
+                            <path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z"></path>
+                          </svg>
+                        </span>
+                      </div>
+                      <div class="text-label">Instagram</div>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="text-center">
+              <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest opacity-60">
+                OrthoConnect Clinic Management • © 2026
+              </p>
+            </div>
+          </footer>
+        </div>
+      </div>
+    </main>
+
+  <!-- Patient Reminder / Precaution Modal -->
+  <div id="nursePrecautionModal" class="fixed inset-0 z-[100] hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="relative w-full max-w-lg rounded-[32px] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-xl font-black text-slate-800 tracking-tight">Patient Reminder</h3>
+          <p class="text-[10px] font-bold text-teal-600 uppercase tracking-widest">Send Care Instructions</p>
+        </div>
+        <button id="closeNursePrecautionBtn" class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      
+      <form id="nursePrecautionForm" class="space-y-4">
+        <input type="hidden" id="nursePrecautionApptId" />
+        <div class="p-4 rounded-2xl bg-teal-50 border border-teal-100 mb-4">
+          <p class="text-[10px] font-black text-teal-600 uppercase tracking-widest mb-1">Patient Name</p>
+          <p id="nursePrecautionPatientName" class="text-sm font-bold text-slate-800">---</p>
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 pl-1">Select Template</label>
+          <select id="nursePrecautionTemplate" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all">
+            <option value="">Custom Message...</option>
+            <option value="post_braces">Post-Braces Adjustment Care</option>
+            <option value="post_extraction">Post-Extraction Instructions</option>
+            <option value="hygiene_reminder">Oral Hygiene Maintenance</option>
+            <option value="surgery_care">Post-Surgery Care</option>
+          </select>
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 pl-1">Message Content</label>
+          <textarea id="nursePrecautionMessage" rows="5" placeholder="Type specific instructions here..." class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all resize-none" required></textarea>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+          <button type="button" id="cancelNursePrecautionBtn" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+          <button type="submit" class="flex-[2] py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-600 text-sm font-bold text-white shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 transition-all flex items-center justify-center gap-2">
+            <i data-lucide="send" class="w-4 h-4"></i> Mark Done & Send
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Follow-up Modal -->
+  <div id="nurseFollowupModal" class="fixed inset-0 z-[100] hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="relative w-full max-w-xl rounded-[32px] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-xl font-black text-slate-800 tracking-tight">Set Follow-up</h3>
+          <p class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Next Appointment Planning</p>
+        </div>
+        <button id="closeNurseFollowupModalBtn" class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="nurseFollowupForm" class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 pl-1">Patient</label>
+            <input type="text" id="nurseFollowupPatientName" readonly class="w-full bg-slate-100 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 border-none cursor-not-allowed" />
+          </div>
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 pl-1">Doctor Assigned</label>
+            <input type="text" id="nurseFollowupDoctorName" readonly class="w-full bg-slate-100 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 border-none cursor-not-allowed" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 pl-1">Next Date</label>
+            <input type="date" id="nurseFollowupDate" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" required />
+          </div>
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 pl-1">Preferred Time</label>
+            <input type="time" id="nurseFollowupTime" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" required />
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 pl-1">Treatment Journey</label>
+          
+          <!-- Phase Progression View (Visible if plan exists) -->
+          <div id="nurseFollowupPhasesWrap" class="hidden">
+            <div id="nurseFollowupPhasesList" class="p-3 rounded-2xl bg-blue-50 border border-blue-100 space-y-2 max-h-[160px] overflow-y-auto nurse-scroll mb-2">
+               <!-- Phases injected here -->
+            </div>
+            <button type="button" id="nurseChangePlanBtn" class="text-[9px] font-black text-blue-500 uppercase tracking-widest hover:underline pl-1 transition-all">Change Treatment Plan</button>
+          </div>
+
+          <!-- Plan Assignment View (Visible if no plan) -->
+          <div id="nurseFollowupPlanAssignWrap" class="space-y-2">
+            <select id="nurseFollowupPlanSelect" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+              <option value="">-- No Active Plan (Select to Assign) --</option>
+              <option value="Braces">Orthodontic Braces</option>
+              <option value="Extraction">Tooth Extraction Journey</option>
+              <option value="Cleaning">Deep Cleaning & Prophylaxis</option>
+              <option value="Root Canal">Root Canal Therapy</option>
+            </select>
+            <p class="text-[9px] font-medium text-slate-400 italic pl-1 text-center">Assigning a plan creates a structured treatment journey for the patient.</p>
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 pl-1">Notes / Reminders</label>
+          <textarea id="nurseFollowupNotes" rows="3" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[12px] font-medium outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"></textarea>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+          <button type="button" id="cancelNurseFollowupBtn" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+          <button type="submit" id="saveNurseFollowupBtn" class="flex-[2] py-3.5 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 text-sm font-bold text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all flex items-center justify-center gap-2">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i> Schedule Follow-up
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Nurse Appointment Detail Modal -->
+  <div id="nurseApptDetailModal" class="fixed inset-0 z-[110] hidden bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center p-4">
+    <div class="relative w-full max-w-2xl rounded-[32px] bg-white shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="px-8 py-6 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div id="nurseDetailInitialContainer" class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-teal-500/20">
+            <span id="nurseDetailInitials" class="text-xl font-black">--</span>
+          </div>
+          <div>
+            <h3 id="nurseDetailPatientName" class="text-xl font-black text-slate-800 tracking-tight">--</h3>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span id="nurseDetailStatusBadge" class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 border border-slate-200">--</span>
+              <span id="nurseDetailApptType" class="text-[10px] font-bold text-slate-400">--</span>
+            </div>
+          </div>
+        </div>
+        <button onclick="closeNurseApptDetailModal()" class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-400 hover:text-slate-600 shadow-sm transition-all">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="flex-1 overflow-y-auto p-8 nurse-scroll">
+        <div class="grid grid-cols-2 gap-6 mb-8">
+          <div class="space-y-4">
+            <div>
+              <p class="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-2">Schedule Information</p>
+              <div class="space-y-2">
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                  <i data-lucide="calendar" class="w-4 h-4 text-teal-500"></i>
+                  <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Date</p>
+                    <p id="nurseDetailDate" class="text-[11px] font-black text-slate-700">--</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                  <i data-lucide="clock" class="w-4 h-4 text-blue-500"></i>
+                  <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Time Range</p>
+                    <p id="nurseDetailTime" class="text-[11px] font-black text-slate-700">--</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p class="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-2">Staff Assigned</p>
+              <div class="flex items-center gap-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-100">
+                <i data-lucide="stethoscope" class="w-4 h-4 text-emerald-600"></i>
+                <div>
+                  <p class="text-[9px] font-bold text-emerald-600/60 uppercase tracking-wider">Doctor</p>
+                  <p id="nurseDetailDoctor" class="text-[11px] font-black text-slate-700">--</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <p class="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-2">Contact Details</p>
+              <div class="space-y-2">
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                  <i data-lucide="phone" class="w-4 h-4 text-slate-400"></i>
+                  <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Phone</p>
+                    <p id="nurseDetailPhone" class="text-[11px] font-black text-slate-700">--</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                  <i data-lucide="mail" class="w-4 h-4 text-slate-400"></i>
+                  <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Email</p>
+                    <p id="nurseDetailEmail" class="text-[11px] font-black text-slate-700 break-all">--</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 mb-8">
+          <!-- Primary Diagnosis -->
+          <div class="space-y-2">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-2 flex items-center gap-2">
+              <i data-lucide="stethoscope" class="w-3 h-3"></i> PRIMARY SERVICE
+            </p>
+            <div class="p-5 rounded-[24px] bg-slate-50 border border-slate-100 min-h-[80px]">
+              <p id="nurseDetailNotes" class="text-xs font-semibold text-slate-600 leading-relaxed italic">No clinical notes recorded for this session.</p>
+            </div>
+          </div>
+
+          <!-- Accomplished Phases Section -->
+          <div id="nurseDetailAccomplishedWrap" class="space-y-2 hidden">
+            <p class="text-[10px] font-black text-indigo-600 uppercase tracking-[2px] mb-2 flex items-center gap-2">
+              <i data-lucide="check-circle-2" class="w-3 h-3"></i> Accomplished Procedures
+            </p>
+            <div id="nurseDetailAccomplishedList" class="flex flex-wrap gap-2 p-4 rounded-[24px] bg-indigo-50/30 border border-indigo-100/50">
+               <!-- Accomplished badges injected here -->
+            </div>
+          </div>
+
+          <!-- Structured Info (Reminders & Plans) -->
+          <div id="nurseDetailStructuredInfo" class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+             <!-- Care Reminders -->
+             <div id="nurseDetailReminderWrap" class="space-y-2 hidden">
+               <p class="text-[10px] font-black text-emerald-600 uppercase tracking-[2px] mb-2 flex items-center gap-2">
+                 <i data-lucide="bell" class="w-3 h-3"></i> Care Instructions
+               </p>
+               <div class="p-4 rounded-[20px] bg-emerald-50/50 border border-emerald-100/50">
+                 <p id="nurseDetailReminders" class="text-[11px] font-bold text-emerald-700 leading-relaxed italic">--</p>
+               </div>
+             </div>
+             <!-- Treatment Plan -->
+             <div id="nurseDetailPlanWrap" class="space-y-2 hidden">
+               <p class="text-[10px] font-black text-blue-600 uppercase tracking-[2px] mb-2 flex items-center gap-2">
+                 <i data-lucide="clipboard-list" class="w-3 h-3"></i> Clinical Plan
+               </p>
+               <div class="p-4 rounded-[20px] bg-blue-50/50 border border-blue-100/50">
+                 <p id="nurseDetailPlan" class="text-[11px] font-bold text-blue-700 leading-relaxed italic">--</p>
+               </div>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="px-8 py-6 border-t border-slate-50 flex items-center justify-between bg-slate-50/30">
+        <button onclick="openNursePatientHistoryFromModal()" class="inline-flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-[2px] text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+          <i data-lucide="history" class="w-4 h-4"></i> Full History
+        </button>
+        <div class="flex items-center gap-3" id="nurseDetailActionContainer">
+          <!-- Contextual actions will be injected here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient History Side Drawer -->
+  <div id="nursePatientHistoryDrawer" class="fixed inset-0 z-[120] hidden pointer-events-none">
+    <!-- Backdrop for drawer -->
+    <div id="nurseHistoryBackdrop" onclick="closeNursePatientHistory()" class="absolute inset-0 bg-slate-900/20 backdrop-blur-[1px] opacity-0 transition-opacity duration-300 pointer-events-auto"></div>
+    
+    <!-- Drawer Panel -->
+    <div id="nurseHistoryPanel" class="absolute top-0 right-0 h-full w-full max-w-md bg-white shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.1)] translate-x-full transition-transform duration-500 ease-out pointer-events-auto flex flex-col">
+      <div class="p-6 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600 border border-teal-100">
+            <i data-lucide="history" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest">Medical History</h3>
+            <p id="nurseHistoryPatientName" class="text-[11px] font-bold text-slate-400">--</p>
+          </div>
+        </div>
+        <button onclick="closeNursePatientHistory()" class="w-8 h-8 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 transition-all">
+          <i data-lucide="chevron-right" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-6 nurse-scroll bg-slate-50/50">
+        <div id="nurseHistoryTimeline" class="relative space-y-6 before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200 before:content-['']">
+          <!-- Timeline items injected here -->
+           <div class="flex flex-col items-center justify-center py-20 text-slate-300 opacity-50">
+             <i data-lucide="calendar-search" class="w-12 h-12 mb-2"></i>
+             <p class="text-[10px] font-black uppercase tracking-widest">No previous history</p>
+           </div>
+        </div>
+      </div>
+
+      <div class="p-6 border-t border-slate-50 bg-white">
+        <p class="text-[9px] font-bold text-slate-400 text-center uppercase tracking-[2px]">Clinical Continuity • OrthoConnect</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Full View Modal -->
+  <div id="fullQRModal" class="fixed inset-0 z-[100] hidden bg-slate-900/90 backdrop-blur-xl flex items-center justify-center p-4">
+    <div class="relative w-full max-w-sm rounded-[40px] bg-white p-8 text-center shadow-2xl animate-in zoom-in-95 duration-300">
+      <button class="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all shadow-lg" onclick="closeFullQR()">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="mb-4">
+        <h3 class="text-xl font-black text-slate-800 tracking-tight">QR Staff Badge</h3>
+        <p class="text-[10px] font-bold text-teal-600 uppercase tracking-widest">Secure Attendance Access</p>
+      </div>
+
+      <div class="relative group no-screenshot p-6 bg-slate-50 rounded-[32px] border border-slate-200">
+        <!-- Anti-screenshot overlay (CSS-based deterrent) -->
+        <div class="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity bg-teal-500/5 flex items-center justify-center pointer-events-none">
+          <p class="text-[8px] font-black text-teal-600/40 uppercase tracking-[4px] rotate-45 whitespace-nowrap">ORTHOCONNECT SECURE • NO CAPTURE</p>
+        </div>
+        
+        <div id="fullQRContainer" class="flex justify-center select-none shadow-xl rounded-xl overflow-hidden bg-white p-2">
+          <!-- Big QR goes here -->
+        </div>
+      </div>
+
+      <div class="mt-6 space-y-3">
+        <div class="flex items-center justify-center gap-3">
+          <div id="fullQRNameInitials" class="w-10 h-10 rounded-2xl bg-teal-500 text-white flex items-center justify-center font-black text-xs">--</div>
+          <div class="text-left">
+            <p id="fullQRName" class="text-sm font-black text-slate-800">Nurse Name</p>
+            <p id="fullQRRole" class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Nurse Account</p>
+          </div>
+        </div>
+        
+        <div class="p-4 rounded-2xl bg-amber-50 border border-amber-100 text-left">
+          <p class="text-[9px] font-black text-amber-700 uppercase tracking-widest mb-1 flex items-center gap-1">
+            <i data-lucide="shield-alert" class="w-3 h-3"></i> Security Notice
+          </p>
+          <p class="text-[10.5px] font-medium text-amber-900/70 leading-relaxed">
+            Downloading or screen-capturing this code is disabled for security. Please use this direct view at the scanner kiosk.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nurse Portal JavaScript -->
+  <script src="/static/js/nurse.js?v=2"></script>
+
+  <!-- Mobile Sidebar Script -->
+  <script>
+    function toggleMobileMenu() {
+      const sidebar = document.getElementById('nurseSidebar');
+      const backdrop = document.getElementById('mobileSidebarBackdrop');
+      const isOpen = !sidebar.classList.contains('-translate-x-[120%]');
+
+      if (isOpen) {
+        sidebar.classList.add('-translate-x-[120%]', 'opacity-0');
+        sidebar.classList.remove('translate-x-0', 'opacity-100');
+        backdrop.classList.add('opacity-0');
+        setTimeout(() => backdrop.classList.add('hidden'), 300);
+      } else {
+        sidebar.classList.remove('-translate-x-[120%]', 'opacity-0');
+        sidebar.classList.add('translate-x-0', 'opacity-100');
+        backdrop.classList.remove('hidden');
+        // Force reflow
+        void backdrop.offsetWidth;
+        backdrop.classList.remove('opacity-0');
+      }
+    }
+    
+    // Listen for nurse.js setNursePage logic to close menu on mobile
+    document.addEventListener("click", (e) => {
+      if (e.target.closest('[data-nurse-page]') && window.innerWidth < 1024) {
+        const sidebar = document.getElementById('nurseSidebar');
+        if (!sidebar.classList.contains('-translate-x-[120%]')) {
+          toggleMobileMenu();
+        }
+      }
+    });
+
+  </script>
+</body>
+
+</html>

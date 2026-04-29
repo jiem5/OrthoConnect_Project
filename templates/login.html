@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OrthoConnect — Secure Access</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/vendor/lucide.min.js"></script>
+  <script src="/vendor/supabase.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap');
+    
+    :root {
+      --bg-ambient: #f8fafc;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-ambient);
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* Ambient Mesh Background */
+    .bg-ambient-mesh {
+      background-color: #f8fafc;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(20, 184, 166, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(20, 184, 166, 0.15) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.15) 0px, transparent 50%);
+      background-attachment: fixed;
+    }
+
+    /* Phone Chassis Style */
+    .login-container {
+      width: 320px;
+      height: 640px;
+      background: #ffffff;
+      border-radius: 50px;
+      box-shadow: 
+        0 20px 50px rgba(0,0,0,0.1),
+        inset 0 0 0 10px #1e293b;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 30px;
+      z-index: 10;
+      border: 6px solid #334155;
+    }
+
+    .phone-buttons::before, .phone-buttons::after {
+      content: '';
+      position: absolute;
+      left: -12px;
+      width: 4px;
+      background: #1e293b;
+      border-radius: 2px;
+    }
+    .phone-buttons::before { top: 100px; height: 40px; }
+    .phone-buttons::after { top: 150px; height: 60px; }
+
+    .phone-screen {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      background: white;
+      border-radius: 40px;
+      z-index: -1;
+      overflow: hidden;
+    }
+
+    .phone-glare {
+      position: absolute;
+      top: -100%;
+      left: -100%;
+      width: 300%;
+      height: 300%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 50%);
+      transform: rotate(-45deg);
+      pointer-events: none;
+    }
+
+    .heading {
+      font-size: 24px;
+      font-weight: 900;
+      color: #1e293b;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .sub-heading {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 35px;
+    }
+
+    .form {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .input-group {
+        position: relative;
+        width: 100%;
+    }
+
+    .input {
+      width: 100%;
+      height: 54px;
+      background: #f1f5f9;
+      border: 2px solid transparent;
+      border-radius: 18px;
+      padding: 0 20px 0 45px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #334155;
+      transition: all 0.3s ease;
+      outline: none;
+    }
+
+    .input:focus {
+      border-color: #0d9488;
+      background: #ffffff;
+      box-shadow: 0 10px 20px rgba(13, 148, 136, 0.1);
+    }
+
+    .input-icon {
+        position: absolute;
+        left: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        transition: color 0.3s ease;
+    }
+
+    .input:focus + .input-icon {
+        color: #0d9488;
+    }
+
+    .btn-login {
+      width: 100%;
+      height: 54px;
+      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+      border: none;
+      border-radius: 18px;
+      color: white;
+      font-size: 15px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      margin-top: 20px;
+      box-shadow: 0 10px 20px rgba(13, 148, 136, 0.3);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 30px rgba(13, 148, 136, 0.4);
+    }
+
+    .btn-login:active {
+      transform: translateY(0);
+    }
+
+    .home-indicator {
+      position: absolute;
+      bottom: 20px;
+      width: 100px;
+      height: 4px;
+      background: #e2e8f0;
+      border-radius: 2px;
+    }
+
+    /* Animation */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .animate-float { animation: float 6s ease-in-out infinite; }
+
+    /* Particles Canvas */
+    #bgCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    /* Brand Text */
+    .brand-glow {
+        text-shadow: 0 0 30px rgba(20, 184, 166, 0.3);
+    }
+  </style>
+</head>
+<body class="bg-ambient-mesh">
+  <canvas id="bgCanvas"></canvas>
+
+  <div class="relative z-10 flex flex-col lg:flex-row h-full w-full max-w-[1400px] mx-auto items-center justify-center lg:justify-between px-8 lg:px-24 gap-12 lg:gap-0">
+    
+    <!-- Unified Login Card -->
+    <div class="flex-shrink-0 animate-float">
+      <div class="login-container">
+        <div class="phone-buttons"></div>
+        <div class="phone-screen"><div class="phone-glare"></div></div>
+        
+        <h1 class="heading">Welcome Back</h1>
+        <p class="sub-heading">Secure Access</p>
+        
+        <form id="unifiedLoginForm" class="form">
+          <div class="input-group">
+            <input required class="input" type="email" id="loginEmail" placeholder="Gmail" autocomplete="email">
+            <i data-lucide="mail" class="input-icon w-4 h-4"></i>
+          </div>
+          
+          <div class="input-group">
+            <input required class="input" type="password" id="loginPassword" placeholder="Password">
+            <i data-lucide="lock" class="input-icon w-4 h-4"></i>
+          </div>
+          
+          <button type="submit" id="loginBtn" class="btn-login">
+            Sign In
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+          
+          <div class="text-center h-4 mt-2">
+            <p id="loginError" class="text-[11px] font-bold text-red-500 tracking-wide"></p>
+          </div>
+
+          <div class="mt-4 text-center">
+            <button type="button" onclick="openResetModal()" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-teal-600 transition-colors">
+              Forgot Password?
+            </button>
+          </div>
+        </form>
+        
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <!-- Branding Section -->
+    <div class="flex flex-1 flex-col justify-center items-center lg:items-start pl-0 lg:pl-16 xl:pl-32 text-center lg:text-left">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 shadow-sm backdrop-blur-md mb-6">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Clinical Management System</span>
+        </div>
+        <h1 class="text-4xl sm:text-6xl xl:text-8xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-teal-500 via-emerald-600 to-cyan-600 drop-shadow-sm mb-2 leading-tight brand-glow">
+            DR. ETHELYN<br/>REGATO-PEREZ
+        </h1>
+        <h2 class="text-2xl sm:text-4xl xl:text-5xl font-extrabold text-slate-700 tracking-tight mb-8">
+            ORTHODENTAL CLINIC
+        </h2>
+        <div class="flex flex-col lg:flex-row items-center w-full max-w-md gap-6">
+            <div class="flex flex-col items-center lg:items-start">
+                <span class="text-2xl font-black text-teal-600 uppercase tracking-widest drop-shadow-sm">
+                    OrthoConnect
+                </span>
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    Powered by Advanced Intelligence
+                </span>
+            </div>
+            <div class="h-[1px] lg:h-8 w-full lg:w-[1px] bg-slate-200 opacity-50"></div>
+            <div class="flex gap-4">
+                <div class="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-emerald-500"></i>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+                    <i data-lucide="fingerprint" class="w-5 h-5 text-teal-500"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <!-- Reset Password Modal -->
+  <div id="resetModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeResetModal()"></div>
+    <div class="relative w-full max-w-[350px] bg-white rounded-[40px] shadow-2xl overflow-hidden border border-white/20 animate-in zoom-in duration-300">
+      
+      <!-- Modal Header -->
+      <div class="p-8 pb-4 text-center">
+        <div class="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-teal-100">
+          <i data-lucide="key-round" class="w-8 h-8 text-teal-600"></i>
+        </div>
+        <h3 id="resetModalTitle" class="text-xl font-black text-slate-800">Forgot Password</h3>
+        <p id="resetModalDesc" class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Enter your gmail account</p>
+      </div>
+
+      <!-- Modal Body -->
+      <div id="resetModalBody" class="p-8 pt-2">
+        <!-- State 1: Email Input -->
+        <div id="resetStateEmail" class="space-y-4">
+          <div class="input-group">
+            <input id="resetEmailInput" class="input" type="email" placeholder="Gmail Address">
+            <i data-lucide="mail" class="input-icon w-4 h-4"></i>
+          </div>
+          <button onclick="handleSendResetEmail()" id="sendResetBtn" class="btn-login mt-2">
+            Send Reset Link
+            <i data-lucide="send" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- State 2: Waiting for Verification -->
+        <div id="resetStateWaiting" class="hidden flex flex-col items-center text-center py-6">
+          <div class="w-12 h-12 border-4 border-teal-100 border-t-teal-500 rounded-full animate-spin mb-6"></div>
+          <p class="text-sm font-black text-slate-700 mb-2">Check your Gmail</p>
+          <p class="text-[11px] text-slate-400 font-medium">We sent a verification link to your email. Please click it to continue.</p>
+        </div>
+
+        <!-- State 3: Change Password -->
+        <div id="resetStateFinal" class="hidden space-y-4">
+          <div class="input-group">
+            <input id="resetNewPass" class="input" type="password" placeholder="New Password">
+            <i data-lucide="lock" class="input-icon w-4 h-4"></i>
+          </div>
+          <div class="input-group">
+            <input id="resetConfirmPass" class="input" type="password" placeholder="Confirm Password">
+            <i data-lucide="check-circle" class="input-icon w-4 h-4"></i>
+          </div>
+          <p id="resetFinalError" class="text-[10px] font-bold text-red-500 text-center h-4"></p>
+          <button onclick="handleFinalReset()" id="finalResetBtn" class="btn-login mt-2">
+            Change Password
+            <i data-lucide="shield-check" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="px-8 pb-8 text-center">
+        <button onclick="closeResetModal()" class="text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-slate-500 transition-colors">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://ctoybxukmkcnwdeueorm.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0b3lieHVrbWtjbndkZXVlb3JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3ODg3NzAsImV4cCI6MjA4ODM2NDc3MH0.hLDzyCvNzWbrXW-5Z1NsE6eH2sF_3S5L33htZYjEiH0";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        storage: window.sessionStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      }
+    });
+
+    // Initialize Lucide
+    if (window.lucide) window.lucide.createIcons();
+
+    // Background Particles
+    const canvas = document.getElementById('bgCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height, particles = [];
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    class Particle {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.size = Math.random() * 2 + 1;
+        this.speedX = (Math.random() - 0.5) * 0.5;
+        this.speedY = (Math.random() - 0.5) * 0.5;
+        this.alpha = Math.random() * 0.5 + 0.2;
+      }
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if (this.x < 0 || this.x > width || this.y < 0 || this.y > height) this.reset();
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(20, 184, 166, ${this.alpha})`;
+        ctx.fill();
+      }
+    }
+
+    for (let i = 0; i < 100; i++) particles.push(new Particle());
+
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    // Login Logic
+    const loginForm = document.getElementById('unifiedLoginForm');
+    const loginError = document.getElementById('loginError');
+    const loginBtn = document.getElementById('loginBtn');
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value.trim();
+
+      if (!email || !password) {
+        loginError.textContent = "Please enter both email and password.";
+        return;
+      }
+
+      const originalBtnText = loginBtn.innerHTML;
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Verifying...`;
+      if (window.lucide) window.lucide.createIcons();
+
+      try {
+        // 1. Attempt Sign In
+        let { data: authData, error: authError } = await sb.auth.signInWithPassword({ email, password });
+        
+        if (authError) throw authError;
+
+        // 2. Fetch staff role details
+        const { data: staffRows, error: staffError } = await sb
+          .from('clinic_staff')
+          .select('*')
+          .eq('email', email)
+          .limit(1);
+
+        const staff = staffRows && staffRows.length > 0 ? staffRows[0] : null;
+
+        if (staffError || !staff) {
+          console.error("Clinic Staff Lookup Error:", staffError);
+          await sb.auth.signOut();
+          throw new Error("Access Denied: No clinical staff record found for " + email);
+        }
+
+        const role = (staff.role || "").toLowerCase();
+        console.log("Successfully authenticated:", staff.name, "| Role:", role);
+        
+        // 3. Redirect based on role
+        if (role === 'nurse') {
+          localStorage.setItem('OC_NURSE_SESSION', JSON.stringify(staff));
+          window.location.href = '/nurse';
+        } else if (role === 'doctor' || role === 'administrator' || role === 'staff') {
+          localStorage.setItem('isAdminLoggedIn', 'true');
+          window.location.href = '/admin';
+        } else {
+          await sb.auth.signOut();
+          throw new Error("Access Denied: Role '" + role + "' is not authorized.");
+        }
+
+      } catch (err) {
+        console.error("Login process failed:", err);
+        loginError.textContent = err.message;
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = originalBtnText;
+        if (window.lucide) window.lucide.createIcons();
+      }
+    });
+
+    // Forgot Password Logic
+    let resetRequestId = null;
+    let resetPollingInterval = null;
+
+    window.openResetModal = function() {
+        document.getElementById('resetModal').classList.remove('hidden');
+        resetState('email');
+    };
+
+    window.closeResetModal = function() {
+        document.getElementById('resetModal').classList.add('hidden');
+        if (resetPollingInterval) clearInterval(resetPollingInterval);
+    };
+
+    function resetState(state) {
+        document.getElementById('resetStateEmail').classList.add('hidden');
+        document.getElementById('resetStateWaiting').classList.add('hidden');
+        document.getElementById('resetStateFinal').classList.add('hidden');
+        
+        if (state === 'email') {
+            document.getElementById('resetStateEmail').classList.remove('hidden');
+            document.getElementById('resetModalTitle').textContent = "Forgot Password";
+            document.getElementById('resetModalDesc').textContent = "Enter your gmail account";
+        } else if (state === 'waiting') {
+            document.getElementById('resetStateWaiting').classList.remove('hidden');
+            document.getElementById('resetModalTitle').textContent = "Link Sent!";
+            document.getElementById('resetModalDesc').textContent = "Check your inbox";
+        } else if (state === 'final') {
+            document.getElementById('resetStateFinal').classList.remove('hidden');
+            document.getElementById('resetModalTitle').textContent = "Change Password";
+            document.getElementById('resetModalDesc').textContent = "Set your new credentials";
+        }
+    }
+
+    window.handleSendResetEmail = async function() {
+        const email = document.getElementById('resetEmailInput').value.trim();
+        if (!email) return alert("Please enter your email");
+
+        const btn = document.getElementById('sendResetBtn');
+        btn.disabled = true;
+        btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Sending...`;
+        if (window.lucide) window.lucide.createIcons();
+
+        try {
+            const { error } = await sb.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + '/?type=recovery'
+            });
+            if (error) throw error;
+            
+            resetState('waiting');
+        } catch (err) {
+            alert(err.message);
+            btn.disabled = false;
+            btn.innerHTML = `Send Reset Link <i data-lucide="send" class="w-4 h-4"></i>`;
+            if (window.lucide) window.lucide.createIcons();
+        }
+    };
+
+    function startResetPolling() {
+        // No longer needed with native flow
+    }
+
+    window.handleFinalReset = async function() {
+        const pass = document.getElementById('resetNewPass').value;
+        const confirm = document.getElementById('resetConfirmPass').value;
+        const errorEl = document.getElementById('resetFinalError');
+
+        if (!pass || pass.length < 6) {
+            errorEl.textContent = "Password must be at least 6 characters";
+            return;
+        }
+        if (pass !== confirm) {
+            errorEl.textContent = "Passwords do not match";
+            return;
+        }
+
+        const btn = document.getElementById('finalResetBtn');
+        btn.disabled = true;
+        btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Updating...`;
+        if (window.lucide) window.lucide.createIcons();
+
+        try {
+            const { error } = await sb.auth.updateUser({ password: pass });
+            if (error) throw error;
+            
+            alert("Password updated successfully! You are now logged in.");
+            window.location.reload(); // Reload to clear recovery state and log in normally
+        } catch (err) {
+            errorEl.textContent = err.message;
+            btn.disabled = false;
+            btn.innerHTML = `Change Password <i data-lucide="shield-check" class="w-4 h-4"></i>`;
+            if (window.lucide) window.lucide.createIcons();
+        }
+    };
+
+    // Check if we are in recovery mode
+    if (window.location.href.includes('type=recovery') || window.location.hash.includes('type=recovery')) {
+        setTimeout(() => {
+            openResetModal();
+            resetState('final');
+        }, 500);
+    }
+
+    // Check if already logged in
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        // We could auto-redirect here if we have a stored role or fetch it
+        const nurseSession = localStorage.getItem('OC_NURSE_SESSION');
+        const isAdmin = localStorage.getItem('isAdminLoggedIn') === 'true';
+        
+        if (nurseSession) window.location.href = '/nurse';
+        else if (isAdmin) window.location.href = '/admin';
+      }
+    });
+  </script>
+</body>
+</html>

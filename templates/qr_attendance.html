@@ -1,0 +1,180 @@
+  <title>OrthoConnect — Specialist Attendance Terminal</title>
+  <meta name="description" content="Premium Specialist QR attendance terminal for OrthoConnect Clinic." />
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS (same as admin) -->
+  <script src="/vendor/tailwindcss.js"></script>
+
+  <!-- Custom QR Attendance Styles -->
+  <link rel="stylesheet" href="/static/css/qr_attendance.css" />
+
+  <!-- html5-qrcode Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- QRCode.js Generator Library -->
+  <script src="/vendor/qrcode.min.js"></script>
+
+  <!-- Supabase JS client (v2) Local -->
+  <script src="/vendor/supabase.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="/vendor/lucide.min.js"></script>
+</head>
+
+<body>
+
+
+  <!-- ===== CLINIC BRANDING HEADER ===== -->
+  <div class="clinic-terminal-header">
+    <div class="header-accent-line"></div>
+    <div class="header-content">
+      <h1 class="doctor-name">Dr. Ethelyn Regato-Perez</h1>
+      <div class="terminal-badge">
+        <span class="pulse-ring"></span>
+        ORTHOCONNECT SCANNER
+      </div>
+    </div>
+  </div>
+
+
+
+
+    <!-- ==================== -->
+    <!-- TAB 1: SCANNER       -->
+    <!-- ==================== -->
+    <!-- Center Clock Section -->
+    <div class="glass-card mb-4" style="text-align:center; padding: 12px 20px;">
+      <p id="liveClock" class="live-clock-display">--:--:--</p>
+      <p id="liveDate" class="live-date-display">Loading...</p>
+    </div>
+
+    <!-- Main Scanner Dashboard -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+      
+      <!-- Left: Recent Scans & Stats -->
+      <div class="xl:col-span-3 space-y-6 order-2 xl:order-1">
+
+
+        <!-- Recent Scans -->
+        <div class="glass-card">
+          <div class="card-title">
+            <div class="card-title-icon" style="background:#f0f9ff;">
+              <i data-lucide="history" class="w-4 h-4 text-blue-600"></i>
+            </div>
+            Latest Scans
+          </div>
+          <div id="recentScansList" class="custom-scroll space-y-3" style="max-height:400px; overflow-y:auto;">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Center: The Scanner -->
+      <div class="xl:col-span-6 order-1 xl:order-2">
+        <div class="glass-card" style="padding:0; overflow:hidden;">
+          <div class="p-6 border-b border-white/20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-teal-50 flex items-center justify-center">
+                <i data-lucide="scan" class="w-5 h-5 text-teal-600"></i>
+              </div>
+              <h2 class="text-sm font-black uppercase tracking-widest text-slate-600">Place QR Badge Below</h2>
+            </div>
+
+          </div>
+
+          <div class="scanner-container" style="border-radius:0; min-height:400px;">
+            <!-- Placeholder -->
+            <div id="scannerPlaceholder" class="scanner-placeholder">
+              <div class="scanner-placeholder-icon">
+                <i data-lucide="camera" class="w-10 h-10 text-blue-500"></i>
+              </div>
+              <h3 class="text-lg font-black text-white">Scanner Standby</h3>
+              <p class="text-sm text-slate-400 max-w-[240px] mx-auto mt-2">Click below to activate the specialist camera terminal</p>
+            </div>
+
+            <!-- Actual QR Reader -->
+            <div id="qr-reader" style="display:none; width:100%;"></div>
+
+            <!-- Visual Scanner Overlay -->
+            <div id="scannerOverlay" class="scanner-overlay" style="display:none;">
+              <div class="scanner-frame">
+                <div class="scanner-line"></div>
+              </div>
+              <div id="scannerFeedback" class="scanner-feedback-tip">
+                <div class="feedback-icon-pulse"></div>
+                <span id="feedbackText">Align QR Code within frame</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-6 bg-slate-50/50 flex justify-center gap-4">
+            <button id="startScanBtn" class="btn btn-primary w-full max-w-[200px]" onclick="startScanner()">
+              <i data-lucide="play" class="w-4 h-4"></i> Start Terminal
+            </button>
+            <button id="stopScanBtn" class="btn btn-danger w-full max-w-[200px]" onclick="stopScanner()" style="display:none;">
+              <i data-lucide="square" class="w-4 h-4"></i> Stop Terminal
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Scan Result & Rules -->
+      <div class="xl:col-span-3 space-y-6 order-3">
+        <!-- Scan Result -->
+        <div class="glass-card">
+          <div class="card-title">
+            <div class="card-title-icon" style="background:#ecfdf5;">
+              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i>
+            </div>
+            Last Scan Result
+          </div>
+          <div id="scanResultPanel">
+            <div class="scan-status-card scan-status-idle">
+              <p class="text-xs font-bold text-slate-400">Scan your badge to see results here</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clinic Rules -->
+        <div class="glass-card bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100">
+          <div class="card-title text-blue-800">
+            <i data-lucide="clock" class="w-4 h-4 mr-1"></i> Shift Info
+          </div>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-600">
+              <span>Shift Starts</span>
+              <span id="qrRuleOpen" class="text-blue-600">--:--</span>
+            </div>
+            <div class="flex items-center justify-between text-xs font-bold text-slate-600">
+              <span>Shift Ends</span>
+              <span id="qrRuleClose" class="text-rose-600">--:--</span>
+            </div>
+            <div class="pt-3 border-t border-blue-200 text-[10px] text-slate-500 font-medium leading-relaxed">
+              * Please ensure you are within the clinic premises before scanning.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer style="text-align:center; padding: 10px 20px;">
+    <p style="font-size:9px; font-weight:800; color:#94a3b8; letter-spacing:1px; text-transform:uppercase;">
+      OrthoConnect QR Attendance System • © 2026
+    </p>
+  </footer>
+
+  <!-- QR Attendance JavaScript -->
+  <script src="/static/js/qr_attendance.js?v=3.0"></script>
+
+
+</body>
+
+</html>
