@@ -14,7 +14,7 @@ SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY')
 MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
 MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-MAIL_DEBUG_MODE = os.environ.get('MAIL_DEBUG_MODE', 'False').lower() == 'true'
+APP_MAIL_SIMULATION = os.environ.get('APP_MAIL_SIMULATION', 'False').lower() == 'true'
 
 # Validate environment variables
 if not all([SUPABASE_URL, SUPABASE_ANON_KEY, MAIL_USERNAME, MAIL_PASSWORD]):
@@ -42,7 +42,7 @@ def send_reminder_email(patient_name, patient_email, subject, body):
             msg = Message(subject, recipients=[patient_email])
             msg.body = body
             
-            if MAIL_DEBUG_MODE:
+            if APP_MAIL_SIMULATION:
                 print(f"[DEBUG] Simulated email to {patient_email}")
                 print(f"Subject: {subject}")
                 print(f"Body: {body[:100]}...")

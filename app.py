@@ -11,47 +11,43 @@ from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
-# ---------- Lazy Config ----------
-# Load config lazily inside functions to avoid Railway Railpack build secret detection
-_mail_instance = None
-_mail_debug_mode = None
-_supabase_url = None
-_supabase_anon_key = None
+# ---------- Flask-Mail Config ----------
+# Configure email settings via environment variables for Railway deployment
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', '587'))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', '')
 
-def get_mail():
-    global _mail_instance
-    if _mail_instance is None:
-        app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-        app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', '587'))
-        app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
-        app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'enriquezeugene53@gmail.com')
-        app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'vlkx gsfa gsfj tjqf')
-        app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'enriquezeugene53@gmail.com')
-        _mail_instance = Mail(app)
-    return _mail_instance
+# Validate required environment variables (warn instead of crash for deployment flexibility)
+if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
+    print("[WARNING] MAIL_USERNAME and MAIL_PASSWORD environment variables are not set. Email functionality will be disabled.")
+    app.config['MAIL_USERNAME'] = app.config['MAIL_USERNAME'] or 'placeholder@example.com'
+    app.config['MAIL_PASSWORD'] = app.config['MAIL_PASSWORD'] or 'placeholder'
 
-def get_mail_debug_mode():
-    global _mail_debug_mode
-    if _mail_debug_mode is None:
-        _mail_debug_mode = os.environ.get('MAIL_DEBUG_MODE', 'False').lower() == 'true'
-    return _mail_debug_mode
+# --- SIMULATION MODE ---
+# Set to True to bypass real email sending (useful for testing/demo)
+# Set to False once you have valid SMTP credentials
+# Controlled by APP_MAIL_SIMULATION environment variable
+APP_MAIL_SIMULATION = os.environ.get('APP_MAIL_SIMULATION', 'False').lower() == 'true' 
 
-def get_supabase_url():
-    global _supabase_url
-    if _supabase_url is None:
-        _supabase_url = os.environ.get('SUPABASE_URL', 'https://ctoybxukmkcnwdeueorm.supabase.co')
-    return _supabase_url
-
-def get_supabase_anon_key():
-    global _supabase_anon_key
-    if _supabase_anon_key is None:
-        _supabase_anon_key = os.environ.get('SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0b3lieHVrbWtjbndkZXVlb3JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3ODg3NzAsImV4cCI6MjA4ODM2NDc3MH0.hLDzyCvNzWbrXW-5Z1NsE6eH2sF_3S5L33htZYjEiH0')
-    return _supabase_anon_key
+mail = Mail(app)
 
 # ---------- MFA & Restricted Access State ----------
 # In-memory store for verification requests
 # Format: { request_id: { "email": email, "verified": False, "expires": timestamp } }
 verification_requests = {}
+
+# ---------- Supabase Config for Background Automation ----------
+SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
+SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY', '')
+
+# Validate required Supabase credentials (warn instead of crash for deployment flexibility)
+if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    print("[WARNING] SUPABASE_URL and SUPABASE_ANON_KEY environment variables are not set. Database functionality will be limited.")
+    SUPABASE_URL = SUPABASE_URL or 'https://placeholder.supabase.co'
+    SUPABASE_ANON_KEY = SUPABASE_ANON_KEY or 'placeholder'
 
 def auto_check_reminders():
     """
@@ -69,8 +65,8 @@ def auto_check_reminders():
             # If your schema uses patient_id, change patients(email) accordingly.
             # Here we assume a foreign key or we'll fetch patients separately if needed.
             headers = {
-                "apikey": get_supabase_anon_key(),
-                "Authorization": f"Bearer {get_supabase_anon_key()}",
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
                 "Content-Type": "application/json"
             }
             
@@ -80,7 +76,7 @@ def auto_check_reminders():
                 "status": "in.(scheduled,accepted,approved)"
             }
             
-            response = requests.get(f"{get_supabase_url()}/rest/v1/appointments", headers=headers, params=params)
+            response = requests.get(f"{SUPABASE_URL}/rest/v1/appointments", headers=headers, params=params)
             if response.status_code == 200:
                 appts = response.json()
                 for appt in appts:
@@ -97,7 +93,7 @@ def auto_check_reminders():
                     
                     if not patient_email:
                         # Fetch from patients table
-                        p_res = requests.get(f"{get_supabase_url()}/rest/v1/patients?full_name=eq.{patient_name}&select=email", headers=headers)
+                        p_res = requests.get(f"{SUPABASE_URL}/rest/v1/patients?full_name=eq.{patient_name}&select=email", headers=headers)
                         if p_res.status_code == 200:
                             p_data = p_res.json()
                             if p_data:
@@ -137,15 +133,15 @@ Please arrive promptly. See you soon!
 Best regards,
 OrthoConnect Administration
                                 """
-                                if not get_mail_debug_mode():
-                                    get_mail().send(msg)
+                                if not APP_MAIL_SIMULATION:
+                                    mail.send(msg)
                                 else:
                                     print(f"[DEBUG] Simulated Email sent to {patient_email}")
 
                             # Mark as notified
                             new_notes = notes + " [10M_REMINDER_SENT]"
                             requests.patch(
-                                f"{get_supabase_url()}/rest/v1/appointments?id=eq.{appt_id}",
+                                f"{SUPABASE_URL}/rest/v1/appointments?id=eq.{appt_id}",
                                 headers=headers,
                                 json={"patient_condition": new_notes}
                             )
@@ -173,14 +169,14 @@ Please start preparing and make your way to the clinic. We look forward to seein
 Best regards,
 OrthoConnect Administration
                                 """
-                                if not get_mail_debug_mode():
-                                    get_mail().send(msg)
+                                if not APP_MAIL_SIMULATION:
+                                    mail.send(msg)
                                 else:
                                     print(f"[DEBUG] Simulated 30m Email sent to {patient_email}")
 
                             new_notes = notes + " [30M_REMINDER_SENT]"
                             requests.patch(
-                                f"{get_supabase_url()}/rest/v1/appointments?id=eq.{appt_id}",
+                                f"{SUPABASE_URL}/rest/v1/appointments?id=eq.{appt_id}",
                                 headers=headers,
                                 json={"patient_condition": new_notes}
                             )
@@ -208,14 +204,14 @@ Please prepare and make sure you arrive on time to avoid delays. We are looking 
 Best regards,
 OrthoConnect Administration
                                 """
-                                if not get_mail_debug_mode():
-                                    get_mail().send(msg)
+                                if not APP_MAIL_SIMULATION:
+                                    mail.send(msg)
                                 else:
                                     print(f"[DEBUG] Simulated 1h Email sent to {patient_email}")
 
                             new_notes = notes + " [1H_REMINDER_SENT]"
                             requests.patch(
-                                f"{get_supabase_url()}/rest/v1/appointments?id=eq.{appt_id}",
+                                f"{SUPABASE_URL}/rest/v1/appointments?id=eq.{appt_id}",
                                 headers=headers,
                                 json={"patient_condition": new_notes}
                             )
@@ -231,7 +227,7 @@ OrthoConnect Administration
                 "appointment_date": f"eq.{tomorrow_str}",
                 "status": "in.(scheduled,accepted,approved)"
             }
-            res_1d = requests.get(f"{get_supabase_url()}/rest/v1/appointments", headers=headers, params=params_1d)
+            res_1d = requests.get(f"{SUPABASE_URL}/rest/v1/appointments", headers=headers, params=params_1d)
             if res_1d.status_code == 200:
                 tomorrow_appts = res_1d.json()
                 for appt in tomorrow_appts:
@@ -245,7 +241,7 @@ OrthoConnect Administration
 
                     patient_email = appt.get("patient_email") or appt.get("email")
                     if not patient_email:
-                        p_res = requests.get(f"{get_supabase_url()}/rest/v1/patients?full_name=eq.{patient_name}&select=email", headers=headers)
+                        p_res = requests.get(f"{SUPABASE_URL}/rest/v1/patients?full_name=eq.{patient_name}&select=email", headers=headers)
                         if p_res.status_code == 200:
                             p_data = p_res.json()
                             if p_data:
@@ -276,14 +272,14 @@ We look forward to seeing you!
 Best regards,
 OrthoConnect Administration
                             """
-                            if not get_mail_debug_mode():
-                                get_mail().send(msg)
+                            if not APP_MAIL_SIMULATION:
+                                mail.send(msg)
                             else:
                                 print(f"[DEBUG] Simulated 1-day reminder to {patient_email}")
 
                         new_notes = notes + " [1D_REMINDER_SENT]"
                         requests.patch(
-                            f"{get_supabase_url()}/rest/v1/appointments?id=eq.{appt_id}",
+                            f"{SUPABASE_URL}/rest/v1/appointments?id=eq.{appt_id}",
                             headers=headers,
                             json={"patient_condition": new_notes}
                         )
@@ -416,15 +412,15 @@ def send_interview_email():
         OrthoConnect HR Team
         """
         
-        if get_mail_debug_mode():
+        if APP_MAIL_SIMULATION:
             print("--- SIMULATED INTERVIEW EMAIL ---")
             print(f"To: {email}")
             print(f"Body: {msg.body}")
             print("---------------------------------")
         else:
-            get_mail().send(msg)
+            mail.send(msg)
 
-        return jsonify({"success": True, "message": "Interview email sent (Simulated)!" if get_mail_debug_mode() else "Interview email sent!"})
+        return jsonify({"success": True, "message": "Interview email sent (Simulated)!" if APP_MAIL_SIMULATION else "Interview email sent!"})
     except Exception as e:
         print("------- EMAIL ERROR TRACEBACK -------")
         traceback.print_exc()
@@ -495,16 +491,16 @@ def send_hiring_email():
         """
         msg.body = f"Congratulations {name}! Welcome to OrthoConnect. Your credentials: Email: {email}, Password: {password}. Verify here: {request.url_root}verification-success"
         
-        if get_mail_debug_mode():
+        if APP_MAIL_SIMULATION:
             print("--- SIMULATED HIRING EMAIL ---")
             print(f"To: {email}")
             print(f"Credentials Sent: Email={email}, Pass={password}")
             print("------------------------------")
         else:
-            get_mail().send(msg)
+            mail.send(msg)
         
         # Return the password so the frontend can also use it to create the Supabase record
-        return jsonify({"success": True, "password": password, "debug": get_mail_debug_mode()})
+        return jsonify({"success": True, "password": password, "debug": APP_MAIL_SIMULATION})
     except Exception as e:
         print("------- HIRING EMAIL ERROR -------")
         traceback.print_exc()
@@ -543,12 +539,12 @@ Best regards,
 OrthoConnect Team
         """
         
-        if get_mail_debug_mode():
+        if APP_MAIL_SIMULATION:
             print(f"--- SIMULATED REMINDER TO {email} ---")
             print(msg.body)
             print("---------------------------------------")
         else:
-            get_mail().send(msg)
+            mail.send(msg)
 
         return jsonify({"success": True, "message": "Reminder sent!"})
     except Exception as e:
@@ -604,12 +600,12 @@ def send_mfa_verification():
         msg.body = f"Hello Administrator,\n\nPlease verify your identity by clicking this link: {verify_link}"
 
         
-        if get_mail_debug_mode():
+        if APP_MAIL_SIMULATION:
             print(f"--- MFA VERIFICATION LINK FOR {email} ---")
             print(f"Link: {verify_link}")
             print("------------------------------------------")
         else:
-            get_mail().send(msg)
+            mail.send(msg)
 
         # Store in-memory
         verification_requests[req_id] = {
@@ -698,13 +694,13 @@ OrthoConnect Administration
         msg = Message(subject, recipients=[email])
         msg.body = body
         
-        if get_mail_debug_mode():
+        if APP_MAIL_SIMULATION:
             print(f"--- SIMULATED {status.upper()} EMAIL ---")
             print(f"To: {email}")
             print(body)
             print("-----------------------------------------")
         else:
-            get_mail().send(msg)
+            mail.send(msg)
 
         return jsonify({"success": True})
     except Exception as e:
