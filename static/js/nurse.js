@@ -296,17 +296,8 @@ async function initNursePortal() {
     // Refresh notifications periodically
     fetchNurseNotifications();
 
-    // Auto-refresh QR if status changes (e.g. 10m before opening)
-    if (activePage === "profile") {
-      await fetchClinicStaticStatus();
-      const currentToken = await getQRStatusToken();
-      if (currentToken !== lastQRToken) {
-        // Clear and re-render only the QR part
-        const qrContent = document.getElementById("nurseProfileQR");
-        if (qrContent) qrContent.innerHTML = "";
-        renderProfile();
-      }
-    }
+    // QR auto-refresh removed - now uses static permanent badges
+
   }, 8000);
 }
 

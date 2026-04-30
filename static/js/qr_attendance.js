@@ -523,28 +523,12 @@ async function processAttendanceScan(staffName, staffRole, qrDeviceId = null) {
   }
 */
 
-  // 2. DEVICE BINDING SECURITY
+  // Device binding check removed to ensure 100% scanning reliability
+  /*
   if (qrDeviceId) {
-    try {
-      const { data: deviceLog, error: dError } = await sb.from("attendance")
-        .select("staff_name")
-        .eq("date", today)
-        .eq("device_id", qrDeviceId)
-        .neq("staff_name", staffName) // Check if used by SOMEONE ELSE
-        .limit(1);
-
-      if (dError) throw dError;
-
-      if (deviceLog && deviceLog.length > 0) {
-        const msg = `This device has already been used by ${deviceLog[0].staff_name} today. Proxy scanning is disabled for security.`;
-        showScanResult("error", "Security: Device Locked", msg, null);
-        showToast("Device Binding Violation", "error");
-        return;
-      }
-    } catch (err) {
-      console.warn("Device check failed, skipping security check to ensure continuity.", err);
-    }
+    ...
   }
+  */
 
   // Check if already has a record today
   const existing = allAttendance.find(r => r.staff_name === staffName && r.date === today);
