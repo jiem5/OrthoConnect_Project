@@ -3,9 +3,3 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
-*.log
-railway-up.json
-.railway/
-.pytest_cache/
-.coverage
-htmlcov/

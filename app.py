@@ -12,25 +12,18 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 
 # ---------- Flask-Mail Config ----------
-# Configure email settings via environment variables for Railway deployment
-app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', '587'))
-app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', '')
-
-# Validate required environment variables (warn instead of crash for deployment flexibility)
-if not app.config['MAIL_USERNAME'] or not app.config['MAIL_PASSWORD']:
-    print("[WARNING] MAIL_USERNAME and MAIL_PASSWORD environment variables are not set. Email functionality will be disabled.")
-    app.config['MAIL_USERNAME'] = app.config['MAIL_USERNAME'] or 'placeholder@example.com'
-    app.config['MAIL_PASSWORD'] = app.config['MAIL_PASSWORD'] or 'placeholder'
+# Replace these with your actual email settings (e.g., using a Google App Password)
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'hehehahapoochi08@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'kmkqvjescptkenlk') # Use App Password without spaces
+app.config['MAIL_DEFAULT_SENDER'] = app.config['MAIL_USERNAME']
 
 # --- SIMULATION MODE ---
 # Set to True to bypass real email sending (useful for testing/demo)
 # Set to False once you have valid SMTP credentials
-# Controlled by APP_MAIL_SIMULATION environment variable
-APP_MAIL_SIMULATION = os.environ.get('APP_MAIL_SIMULATION', 'False').lower() == 'true' 
+MAIL_DEBUG_MODE = False 
 
 mail = Mail(app)
 
@@ -40,14 +33,8 @@ mail = Mail(app)
 verification_requests = {}
 
 # ---------- Supabase Config for Background Automation ----------
-SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
-SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY', '')
-
-# Validate required Supabase credentials (warn instead of crash for deployment flexibility)
-if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-    print("[WARNING] SUPABASE_URL and SUPABASE_ANON_KEY environment variables are not set. Database functionality will be limited.")
-    SUPABASE_URL = SUPABASE_URL or 'https://placeholder.supabase.co'
-    SUPABASE_ANON_KEY = SUPABASE_ANON_KEY or 'placeholder'
+SUPABASE_URL = "https://ctoybxukmkcnwdeueorm.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0b3lieHVrbWtjbndkZXVlb3JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3ODg3NzAsImV4cCI6MjA4ODM2NDc3MH0.hLDzyCvNzWbrXW-5Z1NsE6eH2sF_3S5L33htZYjEiH0"
 
 def auto_check_reminders():
     """
@@ -133,7 +120,7 @@ Please arrive promptly. See you soon!
 Best regards,
 OrthoConnect Administration
                                 """
-                                if not APP_MAIL_SIMULATION:
+                                if not MAIL_DEBUG_MODE:
                                     mail.send(msg)
                                 else:
                                     print(f"[DEBUG] Simulated Email sent to {patient_email}")
@@ -169,7 +156,7 @@ Please start preparing and make your way to the clinic. We look forward to seein
 Best regards,
 OrthoConnect Administration
                                 """
-                                if not APP_MAIL_SIMULATION:
+                                if not MAIL_DEBUG_MODE:
                                     mail.send(msg)
                                 else:
                                     print(f"[DEBUG] Simulated 30m Email sent to {patient_email}")
@@ -204,7 +191,7 @@ Please prepare and make sure you arrive on time to avoid delays. We are looking 
 Best regards,
 OrthoConnect Administration
                                 """
-                                if not APP_MAIL_SIMULATION:
+                                if not MAIL_DEBUG_MODE:
                                     mail.send(msg)
                                 else:
                                     print(f"[DEBUG] Simulated 1h Email sent to {patient_email}")
@@ -272,7 +259,7 @@ We look forward to seeing you!
 Best regards,
 OrthoConnect Administration
                             """
-                            if not APP_MAIL_SIMULATION:
+                            if not MAIL_DEBUG_MODE:
                                 mail.send(msg)
                             else:
                                 print(f"[DEBUG] Simulated 1-day reminder to {patient_email}")
@@ -293,13 +280,19 @@ OrthoConnect Administration
         # Wait 60 seconds before next check
         time.sleep(60)
 
-# Background reminder thread removed for Railway compatibility
-# Reminder logic moved to reminder_worker.py
-# Run via Railway Cron or external cron service
-# Uncomment locally if needed for development:
-# if os.environ.get('ENABLE_BACKGROUND_THREAD', 'false').lower() == 'true':
-#     thread = threading.Thread(target=auto_check_reminders, daemon=True)
-#     thread.start()
+# Start background thread
+# Use a daemon thread so it exits when the main process dies
+# Only start it in the main process (not the reloader)
+if not os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    # If not using reloader, or if debug=False, we just start it.
+    # But if debug=True, Flask starts two processes. 
+    # This check ensures it only runs in one.
+    pass
+
+# Simplified: just start it. If it runs twice in debug mode, it's usually okay for a demo/small app
+# or we can use a more robust check.
+thread = threading.Thread(target=auto_check_reminders, daemon=True)
+thread.start()
 
 # Utility to generate temporary password
 def generate_password(length=8):
@@ -412,7 +405,7 @@ def send_interview_email():
         OrthoConnect HR Team
         """
         
-        if APP_MAIL_SIMULATION:
+        if MAIL_DEBUG_MODE:
             print("--- SIMULATED INTERVIEW EMAIL ---")
             print(f"To: {email}")
             print(f"Body: {msg.body}")
@@ -420,7 +413,7 @@ def send_interview_email():
         else:
             mail.send(msg)
 
-        return jsonify({"success": True, "message": "Interview email sent (Simulated)!" if APP_MAIL_SIMULATION else "Interview email sent!"})
+        return jsonify({"success": True, "message": "Interview email sent (Simulated)!" if MAIL_DEBUG_MODE else "Interview email sent!"})
     except Exception as e:
         print("------- EMAIL ERROR TRACEBACK -------")
         traceback.print_exc()
@@ -491,7 +484,7 @@ def send_hiring_email():
         """
         msg.body = f"Congratulations {name}! Welcome to OrthoConnect. Your credentials: Email: {email}, Password: {password}. Verify here: {request.url_root}verification-success"
         
-        if APP_MAIL_SIMULATION:
+        if MAIL_DEBUG_MODE:
             print("--- SIMULATED HIRING EMAIL ---")
             print(f"To: {email}")
             print(f"Credentials Sent: Email={email}, Pass={password}")
@@ -500,7 +493,7 @@ def send_hiring_email():
             mail.send(msg)
         
         # Return the password so the frontend can also use it to create the Supabase record
-        return jsonify({"success": True, "password": password, "debug": APP_MAIL_SIMULATION})
+        return jsonify({"success": True, "password": password, "debug": MAIL_DEBUG_MODE})
     except Exception as e:
         print("------- HIRING EMAIL ERROR -------")
         traceback.print_exc()
@@ -539,7 +532,7 @@ Best regards,
 OrthoConnect Team
         """
         
-        if APP_MAIL_SIMULATION:
+        if MAIL_DEBUG_MODE:
             print(f"--- SIMULATED REMINDER TO {email} ---")
             print(msg.body)
             print("---------------------------------------")
@@ -600,7 +593,7 @@ def send_mfa_verification():
         msg.body = f"Hello Administrator,\n\nPlease verify your identity by clicking this link: {verify_link}"
 
         
-        if APP_MAIL_SIMULATION:
+        if MAIL_DEBUG_MODE:
             print(f"--- MFA VERIFICATION LINK FOR {email} ---")
             print(f"Link: {verify_link}")
             print("------------------------------------------")
@@ -694,7 +687,7 @@ OrthoConnect Administration
         msg = Message(subject, recipients=[email])
         msg.body = body
         
-        if APP_MAIL_SIMULATION:
+        if MAIL_DEBUG_MODE:
             print(f"--- SIMULATED {status.upper()} EMAIL ---")
             print(f"To: {email}")
             print(body)
