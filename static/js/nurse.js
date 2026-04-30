@@ -323,7 +323,7 @@ function parseTimeString(timeStr) {
   return { h, m };
 }
 
-// ---- Utility: Check if QR should be Open (Now simplified to 5-min rotation) ----
+// ---- Utility: Robust Time Parser ----
 // ---- Utility: Check clinic settings from Supabase ----
 let dbClinicStatus = { is_open: true, operating_days: [1, 2, 3, 4, 5] };
 
@@ -373,7 +373,7 @@ function isClinicOpenNow() {
   return nowTotal >= openTotal && nowTotal <= closeTotal;
 }
 
-// ---- Utility: Check if QR should be Open (Now simplified to 5-min rotation) ----
+// ---- Utility: Static QR Token ----
 async function getQRStatusToken() {
   // Hardcoded to STATIC to prevent rotation/expiration
   return "STATIC";
@@ -448,13 +448,10 @@ async function renderProfile() {
 
 
     if (!qrContainer.querySelector("canvas") && !qrContainer.querySelector("img")) {
-      const today = getTodayStr(); // Use local date for sync with scanner
-      const statusToken = await getQRStatusToken();
-      lastQRToken = statusToken; // Store for polling check
-      // Format: ORTHO_STAFF:Name:Role:Date:Token:DeviceID
-      const qrData = `ORTHO_STAFF:${currentNurse.name}:${currentNurse.role || "Nurse"}:${today}:${statusToken}:${deviceId}`;
+      // Format: ORTHO_STAFF:Name:Role
+      const qrData = `ORTHO_STAFF:${currentNurse.name}:${currentNurse.role || "Nurse"}`;
 
-      // Update indicator visibility (Always active now with rotation)
+      // Update indicator visibility (Always active for static badges)
       const indicator = document.getElementById("qrActiveIndicator");
       if (indicator) {
         indicator.classList.remove("hidden");
@@ -493,9 +490,8 @@ window.openFullQR = async function() {
   const initials = (currentNurse.name || "??").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
   setEl("fullQRNameInitials", initials);
 
-  const today = getTodayStr();
-  const statusToken = await getQRStatusToken();
-  const qrData = `ORTHO_STAFF:${currentNurse.name}:${currentNurse.role || "Nurse"}:${today}:${statusToken}:${deviceId}`;
+  // Format: ORTHO_STAFF:Name:Role
+  const qrData = `ORTHO_STAFF:${currentNurse.name}:${currentNurse.role || "Nurse"}`;
 
   try {
     new QRCode(container, {

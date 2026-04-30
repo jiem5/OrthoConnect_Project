@@ -411,16 +411,10 @@ async function onScanSuccess(decodedText) {
       return;
     }
 
-    // Extraction (Format: ORTHO_STAFF:Name:Role:Date:Token:DeviceID)
+    // Extraction (Format: ORTHO_STAFF:Name:Role)
     const qrName = parts[1]?.trim() || "Unknown";
     const qrRole = parts[2]?.trim() || "Staff";
-    const qrDate = parts[3]?.trim();
-    const qrToken = parts[4]?.trim();
-    const qrDeviceId = parts[5]?.trim();
-    const today = (typeof getTodayStr === 'function') ? getTodayStr() : new Date().toISOString().split('T')[0];
-
-    // QR expiration logic removed for 24/7 scanning with static badges
-
+    const qrDeviceId = parts[3]?.trim(); // Device ID might be optional depending on badge version
 
     // Success Start processing
     scanCooldown = true;
