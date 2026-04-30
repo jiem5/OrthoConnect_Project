@@ -196,17 +196,11 @@
                 <button data-nurse-page="inventory" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
                   <i data-lucide="package" class="w-3.5 h-3.5 opacity-70"></i> <span>Inventory</span>
                 </button>
-                <button data-nurse-page="schedule" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
-                  <i data-lucide="calendar-clock" class="w-3.5 h-3.5 opacity-70"></i> <span>Schedule</span>
-                </button>
                 <button data-nurse-page="my-attendance" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
                   <i data-lucide="scan-line" class="w-3.5 h-3.5 opacity-70"></i> <span>My Attendance</span>
                 </button>
                 <button data-nurse-page="my-payroll" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
                   <i data-lucide="banknote" class="w-3.5 h-3.5 opacity-70"></i> <span>My Payroll</span>
-                </button>
-                <button data-nurse-page="leave-management" class="nurse-nav-item w-full rounded-lg px-3 py-2 text-left font-medium text-slate-500 hover:bg-slate-50 hover:text-teal-600 transition-all flex items-center gap-2.5 text-[12px]">
-                  <i data-lucide="calendar-off" class="w-3.5 h-3.5 opacity-70"></i> <span>Leave Management</span>
                 </button>
               </div>
             </div>
@@ -502,82 +496,7 @@
           </div>
         </section>
 
-        <!-- ==================== LEAVE MANAGEMENT ==================== -->
-        <section id="nurse-page-leave-management" class="space-y-3 hidden nurse-page-section">
-          <div class="rounded-[20px] bg-gradient-to-br from-rose-400 via-pink-500 to-fuchsia-600 p-5 text-white shadow-lg shadow-pink-500/20 mb-1 relative overflow-hidden group">
-            <div class="absolute -top-6 -right-6 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
-              <i data-lucide="calendar-off" class="w-32 h-32 transform rotate-12"></i>
-            </div>
-            <div class="relative z-10">
-              <div class="flex items-center gap-3 mb-0.5">
-                <div class="w-11 h-11 rounded-[16px] bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-inner border border-white/20">
-                  <i data-lucide="calendar-off" class="w-5 h-5 text-white"></i>
-                </div>
-                <div>
-                  <h1 class="text-lg font-black tracking-tight leading-none">Leave Management</h1>
-                  <p class="text-pink-100 text-[12px] font-medium opacity-90 mt-1">File requests and track balance</p>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div class="flex flex-col xl:flex-row gap-4">
-            <!-- Left: Leave Form -->
-            <div class="flex-1 space-y-4">
-              <div class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl p-6 shadow-lg shadow-slate-200/40">
-                <h3 class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500 mb-5">
-                  <i data-lucide="file-plus" class="w-4 h-4 text-pink-500"></i> File Leave Request
-                </h3>
-                <form id="nurseLeaveForm" class="space-y-4">
-                  <div class="space-y-2">
-                    <label for="nurseLeaveDate" class="text-[10px] font-black uppercase tracking-widest text-slate-500">Leave Date</label>
-                    <input type="date" id="nurseLeaveDate" class="w-full bg-slate-50/80 border border-slate-200 rounded-2xl py-2.5 px-4 text-sm font-medium focus:ring-2 focus:ring-pink-500/20 focus:bg-white focus:border-pink-400 transition-all outline-none" required />
-                  </div>
-                  <div class="space-y-2">
-                    <div class="flex justify-between items-center px-1">
-                      <label for="nurseLeaveReason" class="text-[10px] font-black uppercase tracking-widest text-slate-500">Reason (Required)</label>
-                      <div class="text-[10px] font-bold text-slate-400"><span id="reasonCharCount">0</span>/300</div>
-                    </div>
-                    <textarea id="nurseLeaveReason" maxlength="300" required placeholder="Enter exact reason for leave..." class="w-full bg-slate-50/80 border border-slate-200 rounded-2xl py-2.5 px-4 text-sm font-medium focus:ring-2 focus:ring-pink-500/20 focus:bg-white focus:border-pink-400 transition-all outline-none resize-none h-24 max-w-full"></textarea>
-                  </div>
-                  <div class="space-y-2">
-                    <label for="nurseLeaveFile" class="text-[10px] font-black uppercase tracking-widest text-slate-500">Attachment (Docs/Images)</label>
-                    <input type="file" id="nurseLeaveFile" accept=".png,.jpg,.jpeg,.pdf,.doc,.docx" class="w-full bg-slate-50/80 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:bg-pink-100 file:text-pink-600 hover:file:bg-pink-200 text-sm font-medium text-slate-500 border border-slate-200 rounded-2xl p-1 cursor-pointer transition-all outline-none" />
-                    <p class="text-[9px] text-slate-400 mt-1 italic pl-1">Attach medical certificates, letters, or related files if any.</p>
-                  </div>
-                  <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-600 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-pink-500/30 hover:shadow-pink-500/50 transition-all active:scale-95">
-                    <i data-lucide="send" class="w-4 h-4"></i> Submit Leave Request
-                  </button>
-                </form>
-
-                <!-- Leave Balance -->
-                <div id="nurseLeaveBalance" class="mt-6 pt-5 border-t border-slate-100"></div>
-
-                <!-- Leave Policy -->
-                <div class="mt-5 p-4 bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl border border-pink-100">
-                  <p class="text-[10px] font-black uppercase tracking-widest text-pink-600 mb-2">📋 Leave Policy</p>
-                  <ul class="text-[11px] font-medium text-slate-600 leading-relaxed space-y-1 pl-4 list-disc">
-                    <li>Maximum <strong>3 leave days</strong> per month</li>
-                    <li>File in advance when possible</li>
-                    <li>Exceeding the limit will be flagged</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <!-- Right: Leave Records -->
-            <div class="w-full xl:w-[400px] shrink-0">
-              <div class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl p-5 shadow-lg shadow-slate-200/40">
-                <h3 class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500 mb-4">
-                  <i data-lucide="list" class="w-4 h-4 text-pink-500"></i> My Leave Records
-                </h3>
-                <div id="nurseLeaveRecords" class="space-y-2 max-h-[500px] overflow-y-auto nurse-scroll pr-1">
-                  <p class="text-sm text-slate-400 text-center py-8">Loading leave records...</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
 
 
@@ -698,89 +617,7 @@
             </div>
           </section>
 
-          <!-- ==================== SCHEDULE / TIMETABLE ==================== -->
-          <section id="nurse-page-schedule" class="space-y-3 hidden nurse-page-section">
-            <div class="rounded-[20px] bg-gradient-to-br from-indigo-500 via-blue-600 to-cyan-600 p-5 text-white shadow-lg shadow-indigo-500/20 mb-1 relative overflow-hidden group">
-              <div class="absolute -top-6 -right-6 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
-                <i data-lucide="calendar-range" class="w-32 h-32 transform rotate-12"></i>
-              </div>
-              <div class="relative z-10">
-                <div class="flex items-center gap-3 mb-0.5">
-                  <div class="w-11 h-11 rounded-[16px] bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-inner border border-white/20">
-                    <i data-lucide="calendar-range" class="w-5 h-5 text-white"></i>
-                  </div>
-                  <div>
-                    <h1 class="text-lg font-black tracking-tight leading-none">Clinical Schedule</h1>
-                    <p class="text-indigo-50 text-[12px] font-medium opacity-90 mt-1">Daily timetable & appointment overview</p>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <!-- Filters & Metrics Bar -->
-            <div class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl p-4 shadow-lg shadow-slate-200/40">
-              <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                <!-- Filters -->
-                <div class="flex flex-wrap items-center gap-3">
-                  <div class="flex items-center gap-2">
-                    <label class="text-[9px] font-black uppercase tracking-widest text-slate-400">Range</label>
-                    <select id="nurseScheduleRange" class="bg-slate-50/80 border border-slate-200 rounded-2xl py-2 px-3 text-[12px] font-medium focus:ring-2 focus:ring-indigo-500/20 focus:bg-white focus:border-indigo-400 transition-all outline-none">
-                      <option value="daily">Daily View</option>
-                      <option value="weekly">Weekly Matrix</option>
-                      <option value="monthly">Monthly Matrix</option>
-                      <option value="yearly">Yearly Overview</option>
-                    </select>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <label class="text-[9px] font-black uppercase tracking-widest text-slate-400">Date</label>
-                    <input type="date" id="nurseScheduleDate" class="bg-slate-50/80 border border-slate-200 rounded-2xl py-2 px-3 text-[12px] font-medium focus:ring-2 focus:ring-indigo-500/20 focus:bg-white focus:border-indigo-400 transition-all outline-none" />
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <label class="text-[9px] font-black uppercase tracking-widest text-slate-400">Staff</label>
-                    <select id="nurseScheduleDoctor" class="bg-slate-50/80 border border-slate-200 rounded-2xl py-2 px-3 text-[12px] font-medium focus:ring-2 focus:ring-indigo-500/20 focus:bg-white focus:border-indigo-400 transition-all outline-none min-w-[160px]">
-                      <option value="">All Staff</option>
-                    </select>
-                  </div>
-                </div>
-
-                <!-- Metrics & Export -->
-                <div class="flex flex-wrap items-center gap-3">
-                  <div class="flex items-center gap-2 px-3 py-2 rounded-2xl bg-indigo-50 border border-indigo-100">
-                    <div class="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center"><i data-lucide="calendar-check" class="w-3.5 h-3.5 text-indigo-600"></i></div>
-                    <div>
-                      <p class="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Today</p>
-                      <p id="nurseTtMetricToday" class="text-sm font-black text-indigo-700 tabular-nums leading-none">0</p>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2 px-3 py-2 rounded-2xl bg-emerald-50 border border-emerald-100">
-                    <div class="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center"><i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-600"></i></div>
-                    <div>
-                      <p class="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Active</p>
-                      <p id="nurseTtMetricActive" class="text-sm font-black text-emerald-700 tabular-nums leading-none">0</p>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2 px-3 py-2 rounded-2xl bg-violet-50 border border-violet-100">
-                    <div class="w-6 h-6 rounded-lg bg-violet-100 flex items-center justify-center"><i data-lucide="users" class="w-3.5 h-3.5 text-violet-600"></i></div>
-                    <div>
-                      <p class="text-[8px] font-black text-violet-400 uppercase tracking-widest">Staff</p>
-                      <p id="nurseTtMetricStaff" class="text-sm font-black text-violet-700 tabular-nums leading-none">0</p>
-                    </div>
-                  </div>
-                  <button onclick="exportTimetablePDF('nurseScheduleContainer')" class="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95">
-                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Export
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Timetable Container (populated by JS) -->
-            <div id="nurseScheduleContainer" class="rounded-[24px] border border-white/40 bg-white/70 backdrop-blur-xl shadow-lg shadow-slate-200/40">
-              <div class="py-12 text-center text-sm text-slate-400 flex flex-col items-center">
-                <i data-lucide="loader-2" class="w-8 h-8 text-indigo-500 mb-2 animate-spin"></i>
-                <span class="font-medium animate-pulse">Loading clinical timetable...</span>
-              </div>
-            </div>
-          </section>
 
           <!-- Nurse Portal Social Footer -->
           <footer class="w-full py-8 mt-12 mb-6 flex flex-col items-center justify-center gap-6 border-t border-slate-100">

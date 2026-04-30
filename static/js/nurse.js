@@ -272,10 +272,7 @@ function setNursePage(pageKey) {
   // Lazy load page data
   if (pageKey === "my-attendance") loadMyAttendance();
   if (pageKey === "my-payroll") loadMyPayroll();
-  if (pageKey === "leave-management") loadLeaveManagement();
   if (pageKey === "profile") renderProfile();
-
-  if (pageKey === "schedule") loadSchedule();
   if (pageKey === "inventory") loadInventory();
   if (pageKey === "settings") loadSettings();
 
@@ -378,14 +375,8 @@ function isClinicOpenNow() {
 
 // ---- Utility: Check if QR should be Open (Now simplified to 5-min rotation) ----
 async function getQRStatusToken() {
-  if (!isClinicOpenNow()) {
-    // Include times and days so if admin changes them, token changes and UI updates
-    return "CLD_" + (dbClinicStatus.opening_time || "") + "_" + (dbClinicStatus.closing_time || "") + "_" + (dbClinicStatus.operating_days || []).join("");
-  }
-  
-  // Rotate token every 5 minutes for security
-  const rotationIndex = Math.floor(Date.now() / (1000 * 60 * 5));
-  return "ROT" + rotationIndex;
+  // Hardcoded to STATIC to prevent rotation/expiration
+  return "STATIC";
 }
 
 // =============================================
@@ -452,26 +443,9 @@ async function renderProfile() {
   if (qrContainer) {
     qrContainer.innerHTML = ""; // Clear
     
-    // Check if open
-    if (!isClinicOpenNow()) {
-      const openTime = dbClinicStatus.opening_time || "09:00";
-      const closeTime = dbClinicStatus.closing_time || "17:00";
-      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      const opDaysText = (dbClinicStatus.operating_days || [1, 2, 3, 4, 5]).map(d => dayNames[parseInt(d, 10)]).join(', ') || "Mon-Fri";
+    // Clinic status check removed to keep QR always visible
+    const qrVisible = true; 
 
-      qrContainer.innerHTML = `
-        <div class="flex flex-col items-center justify-center h-full p-6 text-center">
-          <div class="w-16 h-16 rounded-3xl bg-amber-50 flex items-center justify-center mb-4 text-amber-500 shadow-sm border border-amber-100">
-            <i data-lucide="clock" class="w-8 h-8"></i>
-          </div>
-          <h4 class="text-xs font-black text-slate-700 uppercase tracking-widest leading-relaxed">Clinic is currently closed</h4>
-          <p class="text-[10px] font-medium text-slate-400 mt-2 px-4 italic leading-relaxed">Hours: ${openTime} - ${closeTime}</p>
-          <p class="text-[10px] font-medium text-slate-400 mt-0.5 px-4 italic leading-relaxed">Days: ${opDaysText}</p>
-        </div>
-      `;
-      if (window.lucide) window.lucide.createIcons();
-      return;
-    }
 
     if (!qrContainer.querySelector("canvas") && !qrContainer.querySelector("img")) {
       const today = getTodayStr(); // Use local date for sync with scanner

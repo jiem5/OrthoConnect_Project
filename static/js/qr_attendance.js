@@ -419,21 +419,8 @@ async function onScanSuccess(decodedText) {
     const qrDeviceId = parts[5]?.trim();
     const today = (typeof getTodayStr === 'function') ? getTodayStr() : new Date().toISOString().split('T')[0];
 
-    // 1. Date Check
-    if (qrDate && qrDate !== today) {
-      showScanResult("error", "QR Expired", "This QR badge is for a different day. Please refresh your portal.", null);
-      return;
-    }
+    // QR expiration logic removed for 24/7 scanning with static badges
 
-    // 2. Token Check (Rotation)
-    if (qrToken && qrToken.startsWith("ROT")) {
-      const currentRotation = Math.floor(Date.now() / (1000 * 60 * 5));
-      const expectedTokens = ["ROT" + currentRotation, "ROT" + (currentRotation - 1)];
-      if (!expectedTokens.includes(qrToken)) {
-        showScanResult("error", "QR Expired", "Security rotation expired. Please wait for the QR to refresh (5m).", null);
-        return;
-      }
-    }
 
     // Success Start processing
     scanCooldown = true;
@@ -518,6 +505,8 @@ async function processAttendanceScan(staffName, staffRole, qrDeviceId = null) {
   const elapsed = getElapsedMinutes(nowTotalMins, openTotalMins);
   const isOperatingTime = elapsed <= totalShift;
 
+  // Clinic status checks removed to allow 24/7 scanning for static badges
+/*
   if (!clinicManualOpen) {
     showScanResult("error", "Clinic Closed", "Public scanning is currently disabled by the administrator.", null);
     showToast("Clinic is manually closed", "error");
@@ -538,6 +527,7 @@ async function processAttendanceScan(staffName, staffRole, qrDeviceId = null) {
     showToast("Outside clinic hours", "error");
     return;
   }
+*/
 
   // 2. DEVICE BINDING SECURITY
   if (qrDeviceId) {
