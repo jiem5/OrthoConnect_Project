@@ -391,16 +391,15 @@ function stopScanner() {
 // ---- Handle Scan Result ----
 async function onScanSuccess(decodedText) {
   try {
-    // Beep sound to confirm camera caught something
-    try {
-      const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-      audio.play().catch(e => { });
-    } catch (e) { }
+    // Cooldown to prevent double scans (Move to top)
+    if (scanCooldown) return;
+    scanCooldown = true;
+
+    // Default cooldown (1.5s) to allow camera to refocus or user to move away
+    setTimeout(() => { scanCooldown = false; }, 1500);
 
     console.log("QR Processing:", decodedText);
 
-    // Cooldown to prevent double scans
-    if (scanCooldown) return;
 
     // Parse: "ORTHO_STAFF:Name:Role:Date:Token"
     const parts = decodedText.split(":");
@@ -416,9 +415,11 @@ async function onScanSuccess(decodedText) {
     const qrRole = parts[2]?.trim() || "Staff";
     const qrDeviceId = parts[3]?.trim(); // Device ID might be optional depending on badge version
 
-    // Success Start processing
+    // Extend cooldown for SUCCESSFUL detection to 8 seconds
+    // This prevents the same QR from triggering twice in a row immediately
     scanCooldown = true;
-    setTimeout(() => { scanCooldown = false; }, 10000); // 10s cooldown for success
+    setTimeout(() => { scanCooldown = false; }, 8000); 
+
 
     // Verify staff
     const staff = allStaff.find(s => s.name?.trim().toLowerCase() === qrName.toLowerCase());
@@ -445,34 +446,40 @@ async function processAttendanceScan(staffName, staffRole, qrDeviceId = null) {
   const timeNow = formatTimeNow();
 
   // 0. GEOLOCATION CHECK (Optimized for speed)
-  try {
     const position = await new Promise((resolve, reject) => {
-      // Use maximumAge to get cached location instantly if available
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false,
-        timeout: 3000,
-        maximumAge: 60000
-      });
+      // 5-second timeout for location, fallback to null
+      const timer = setTimeout(() => {
+        console.warn("Geolocation timeout, proceeding with default location.");
+        resolve(null); 
+      }, 5000);
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { clearTimeout(timer); resolve(pos); },
+        (err) => { clearTimeout(timer); resolve(null); }, // Fallback on error
+        { enableHighAccuracy: false, timeout: 4500, maximumAge: 60000 }
+      );
     });
 
-    const distance = calculateDistance(
-      position.coords.latitude,
-      position.coords.longitude,
-      CLINIC_CONFIG.clinicLat,
-      CLINIC_CONFIG.clinicLon
-    );
+    if (position) {
+      const distance = calculateDistance(
+        position.coords.latitude,
+        position.coords.longitude,
+        CLINIC_CONFIG.clinicLat,
+        CLINIC_CONFIG.clinicLon
+      );
+      
+      console.log(`Scan Distance: ${distance.toFixed(1)}m`);
 
-    if (distance > CLINIC_CONFIG.allowedRadius) {
-      const msg = `Out of range! You are ${Math.round(distance)}m away. Attendance must be scanned within the clinic premises.`;
-      showScanResult("error", "Location Blocked", msg, null);
-      showToast("Access Denied: Distance too far", "error");
-      return;
+      if (distance > (dbClinicSettings?.allowed_radius || CLINIC_CONFIG.allowedRadius)) {
+        showScanResult("error", "Location Restricted", `You are too far (${Math.round(distance)}m) from the clinic to scan.`, null);
+        showToast("Geofencing Restriction", "error");
+        return;
+      }
+    } else {
+      console.warn("Continuing without geolocation verification.");
     }
   } catch (err) {
-    console.warn("Location check error:", err);
-    showScanResult("error", "Location Needed", "Please enable GPS/Location access to verify you are at the clinic.", null);
-    showToast("GPS Error: Location required", "error");
-    return;
+    console.warn("Location process failed, continuing with caution:", err);
   }
 
   // 1. Check Clinic Status (Use pre-fetched settings for speed)
