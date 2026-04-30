@@ -4791,6 +4791,16 @@
           </div>
         </div>
 
+        <div id="apptAccomplishedSection" class="hidden space-y-1.5 p-2.5 rounded-xl bg-emerald-50 border border-emerald-100/50">
+          <div class="flex items-center justify-between">
+            <span class="text-[8px] font-black uppercase tracking-widest text-emerald-600">Accomplished Phases</span>
+            <span id="apptAccomplishedCount" class="text-[8px] font-black bg-emerald-500 text-white px-1.5 rounded-full leading-tight">0</span>
+          </div>
+          <div id="apptAccomplishedList" class="flex flex-wrap gap-1">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
         <div class="space-y-1">
           <label for="notes" class="text-[8px] font-black uppercase tracking-widest text-slate-400 ml-1">Notes</label>
           <textarea id="notes" rows="1" placeholder="Purpose..."
@@ -5569,6 +5579,14 @@
                <div>
                  <p class="text-[10px] uppercase tracking-wider text-emerald-500 mb-0.5 font-black">Treatment Journey</p>
                  <p id="apptDetailJourney" class="text-[13px] font-bold text-slate-800 leading-tight">—</p>
+               </div>
+            </div>
+
+            <!-- Accomplished Phases Section -->
+            <div id="apptDetailAccomplishedWrap" class="hidden pt-3 border-t border-slate-100 space-y-2">
+               <p class="text-[10px] uppercase tracking-wider text-emerald-600 mb-0.5 font-black">Accomplished Phases</p>
+               <div id="apptDetailAccomplishedList" class="flex flex-wrap gap-1.5">
+                  <!-- Dynamically populated -->
                </div>
             </div>
 

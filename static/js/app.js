@@ -2122,12 +2122,15 @@ const rowsHtml = sortedFiltered
           
       let extractedDiagnosis = appt.service || appt.condition || appt.patient_condition || appt.service_type || appt.appointment_type || "—";
       
-      if (extractedDiagnosis.toLowerCase() === "schedule" || extractedDiagnosis.toLowerCase() === "consultation") {
-          // If it's a generic type, try to find a better label or keep as is if nothing else
-          extractedDiagnosis = appt.service_type || (extractedDiagnosis === "consultation" ? "General Consultation" : extractedDiagnosis);
+      // Strict Cleaning of Tracking Tags from display string
+      if (typeof extractedDiagnosis === 'string' && extractedDiagnosis.includes("[")) {
+          extractedDiagnosis = extractedDiagnosis
+            .replace(/\[(PLAN|Accomplished|CareReminder|ReminderSent|BEFORE_JPG|AFTER_JPG)(?:\s*\(.*?\))?:[\s\S]*?\]/gi, "")
+            .replace(/\[\d+[DMH]_REMINDER_SENT\]/gi, "")
+            .trim();
       }
 
-      if (extractedDiagnosis.startsWith("[") || extractedDiagnosis === "...") {
+      if (!extractedDiagnosis || extractedDiagnosis === "...") {
           extractedDiagnosis = "—";
       }
 
@@ -2320,6 +2323,9 @@ function openModal(mode, appointment) {
     if (appointmentTypeInput) {
       appointmentTypeInput.value = currentApptTab || "schedule";
     }
+    
+    const accomplishedSect = document.getElementById("apptAccomplishedSection");
+    if (accomplishedSect) accomplishedSect.classList.add("hidden");
   } else if (mode === "edit" && appointment) {
     modalTitle.textContent = "Edit Appointment";
     apptIdInput.value = appointment.id;
@@ -2333,9 +2339,38 @@ function openModal(mode, appointment) {
       : "";
     durationInput.value = appointment.duration_minutes || 30;
     statusInput.value = appointment.status || "scheduled";
-    notesInput.value = appointment.patient_condition || "";
+    const notes = appointment.patient_condition || "";
+    notesInput.value = notes.replace(/\[(PLAN|ReminderSent|Accomplished|CareReminder|BEFORE_JPG|AFTER_JPG)(?:\s*\(.*?\))?:[\s\S]*?\]/gi, "").replace(/\[\d+[DMH]_REMINDER_SENT\]/gi, "").trim();
+    
     if (appointmentTypeInput) {
       appointmentTypeInput.value = appointment.appointment_type || "schedule";
+    }
+
+    // Populate Accomplished Phases section
+    const accomplishedSect = document.getElementById("apptAccomplishedSection");
+    const accomplishedList = document.getElementById("apptAccomplishedList");
+    const accomplishedCount = document.getElementById("apptAccomplishedCount");
+
+    if (accomplishedSect && accomplishedList) {
+      const tags = [];
+      const tagRegex = /\[Accomplished:\s*(.*?)\s*-\s*(.*?)\]/gi;
+      let match;
+      while ((match = tagRegex.exec(notes)) !== null) {
+          tags.push(match[1]); // match[1] is the title
+      }
+
+      if (tags.length > 0) {
+          accomplishedSect.classList.remove("hidden");
+          accomplishedCount.textContent = tags.length;
+          accomplishedList.innerHTML = tags.map(t => `
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase border border-emerald-200">
+                ${t}
+              </span>
+          `).join("");
+      } else {
+          accomplishedSect.classList.add("hidden");
+          accomplishedList.innerHTML = "";
+      }
     }
   }
   apptModal.classList.remove("hidden");
@@ -3035,10 +3070,36 @@ async function openApptDetailModal(appt) {
   }
 
   let displayCondition = appt.patient_condition || appt.service_type || appt.appointment_type || "General Consultation / Inquiry";
-  if (displayCondition.toLowerCase() === "schedule" || displayCondition.toLowerCase() === "consultation" || displayCondition.toLowerCase() === "followups") {
-    displayCondition = (displayCondition.toLowerCase() === "consultation") ? "General Consultation / Inquiry" : (displayCondition.toLowerCase() === "followups" ? "Follow-up Treatment" : "General Treatment");
+  
+  // Clean tags from displayCondition
+  if (typeof displayCondition === 'string') {
+      displayCondition = displayCondition
+        .replace(/\[(PLAN|Accomplished|CareReminder|ReminderSent|BEFORE_JPG|AFTER_JPG)(?:\s*\(.*?\))?:[\s\S]*?\]/gi, "")
+        .replace(/\[\d+[DMH]_REMINDER_SENT\]/gi, "")
+        .trim();
+  }
+
+  if (displayCondition.toLowerCase() === "schedule" || displayCondition.toLowerCase() === "consultation" || displayCondition.toLowerCase() === "followups" || !displayCondition) {
+    const typeLower = (appt.appointment_type || "").toLowerCase();
+    displayCondition = (typeLower === "consultation") ? "General Consultation / Inquiry" : (typeLower === "followups" ? "Follow-up Treatment" : "General Treatment");
   }
   if (conditionEl) conditionEl.textContent = displayCondition;
+
+  // Handle Accomplished Section for detail modal
+  const accomplishedWrap = document.getElementById("apptDetailAccomplishedWrap");
+  const accomplishedList = document.getElementById("apptDetailAccomplishedList");
+  if (accomplishedWrap && accomplishedList) {
+      const accTags = specialTags.filter(t => t.type.toUpperCase() === "ACCOMPLISHED");
+      if (accTags.length > 0) {
+          accomplishedWrap.classList.remove("hidden");
+          accomplishedList.innerHTML = accTags.map(t => {
+              const display = t.val.includes(" - ") ? t.val.split(" - ")[0].trim() : t.val.trim();
+              return `<span class="inline-flex items-center px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase border border-emerald-100 shadow-sm transition-all hover:scale-105">${display}</span>`;
+          }).join("");
+      } else {
+          accomplishedWrap.classList.add("hidden");
+      }
+  }
 
   // Handle Treatment Journey Display (Try appointment column first)
   if (journeyEl) {

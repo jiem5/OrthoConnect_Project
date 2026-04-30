@@ -983,7 +983,7 @@ function renderAppointments() {
     const initials = (a.patient_name || "??").split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
     const notes = a.patient_condition || "";
-    const cleanDisplayNotes = notes.replace(/\[(PLAN|ReminderSent|Accomplished)(?:\s*\(.*?\))?:[\s\S]*?\]/gi, "").replace(/\[(BEFORE|AFTER)_JPG:.*?\]/gi, "").replace(/\[\d+[DMH]_REMINDER_SENT\]/gi, "").trim();
+    const cleanDisplayNotes = notes.replace(/\[(PLAN|ReminderSent|Accomplished|CareReminder|BEFORE_JPG|AFTER_JPG)(?:\s*\(.*?\))?:[\s\S]*?\]/gi, "").replace(/\[\d+[DMH]_REMINDER_SENT\]/gi, "").trim();
     const shortNotes = cleanDisplayNotes.length > 35 ? cleanDisplayNotes.slice(0, 32).trim() + "..." : cleanDisplayNotes;
 
     // Relative Time Logic
@@ -1043,7 +1043,15 @@ function renderAppointments() {
 
       <!-- Type -->
       <td class="px-3 py-3 whitespace-nowrap">
-        <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-widest border border-emerald-100/50 shadow-sm">${escapeHtml(a.service || a.condition || a.appointment_type || "Visit")}</span>
+        <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-widest border border-emerald-100/50 shadow-sm">
+          ${(function() {
+              let t = a.service || a.condition || a.appointment_type || "Visit";
+              if (typeof t === 'string' && t.includes("[")) {
+                  t = t.replace(/\[(PLAN|Accomplished|CareReminder|ReminderSent|BEFORE_JPG|AFTER_JPG)(?:\s*\(.*?\))?:[\s\S]*?\]/gi, "").trim();
+              }
+              return escapeHtml(t || "Visit");
+          })()}
+        </span>
       </td>
 
       <!-- Contact -->
@@ -1194,9 +1202,12 @@ window.openNurseApptDetailModal = async function(apptId) {
     if (initialsEl) initialsEl.textContent = initials;
     
     // Priority-based service/type display
-    const type = a.service || a.condition || a.patient_condition || a.service_type || a.appointment_type || "General Visit";
+    let type = a.service || a.condition || a.patient_condition || a.service_type || a.appointment_type || "General Visit";
+    if (typeof type === 'string') {
+        type = type.replace(/\[(PLAN|Accomplished|CareReminder|ReminderSent|BEFORE_JPG|AFTER_JPG)(?:\s*\(.*?\))?:[\s\S]*?\]/gi, "").replace(/\[\d+[DMH]_REMINDER_SENT\]/gi, "").trim();
+    }
     const typeEl = document.getElementById("nurseDetailApptType");
-    if (typeEl) typeEl.textContent = type;
+    if (typeEl) typeEl.textContent = type || "General Visit";
     
     const statusKey = (a.status || "").toLowerCase();
     const statusBadge = document.getElementById("nurseDetailStatusBadge");
@@ -1269,8 +1280,11 @@ window.openNurseApptDetailModal = async function(apptId) {
     // Populate Primary Service / Condition
     const notesEl = document.getElementById("nurseDetailNotes");
     // User requested to stop fetching from notes and use service/condition column instead
-    const displayService = a.service || a.condition || a.patient_condition || a.service_type || "No specific clinical service recorded.";
-    if (notesEl) notesEl.textContent = displayService;
+    let displayService = a.service || a.condition || a.patient_condition || a.service_type || "No specific clinical service recorded.";
+    if (typeof displayService === 'string') {
+        displayService = displayService.replace(/\[(PLAN|Accomplished|CareReminder|ReminderSent|BEFORE_JPG|AFTER_JPG)(?:\s*\(.*?\))?:[\s\S]*?\]/gi, "").replace(/\[\d+[DMH]_REMINDER_SENT\]/gi, "").trim();
+    }
+    if (notesEl) notesEl.textContent = displayService || "No specific clinical service recorded.";
 
     // Handle Accomplished Section
     const accomplishedWrap = document.getElementById("nurseDetailAccomplishedWrap");
@@ -4027,59 +4041,7 @@ async function sendAutomatedChatRecapture(patientName) {
   }
 }
 
-// =============================================
-// AUTOMATED EMAIL REMINDERS (Flask Integration)
-// =============================================
-async function runAutomatedReminders() {
-    console.log("OrthoConnect: Checking for appointments needing email reminders...");
-    try {
-        const today = getTodayStr();
-        const { data: appts } = await sb
-            .from("appointments")
-            .select("*")
-            .eq("appointment_date", today)
-            .eq("status", "scheduled");
-
-        if (!appts) return;
-
-        for (const a of appts) {
-            const reminderKey = `reminded_${a.id}_${today}`;
-            if (localStorage.getItem(reminderKey)) continue;
-
-            const { data: patients } = await sb
-                .from("patients")
-                .select("email")
-                .eq("full_name", a.patient_name)
-                .limit(1);
-
-            if (patients && patients.length > 0 && patients[0].email) {
-                const email = patients[0].email;
-                const resp = await fetch("/api/appointment/reminder", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        email: email,
-                        patient_name: a.patient_name,
-                        time: formatTime12h(a.appointment_time),
-                        date: today,
-                        location: "OrthoConnect Dental Clinic (Main)"
-                    })
-                });
-                
-                if (resp.ok) {
-                    console.log(`Auto-reminder sent to ${a.patient_name}`);
-                    localStorage.setItem(reminderKey, "true");
-                }
-            }
-        }
-    } catch (err) {
-        console.error("Auto-reminder routine error:", err);
-    }
-}
-
-// Start auto-checking if the portal is open
-setInterval(runAutomatedReminders, 600000); 
-setTimeout(runAutomatedReminders, 5000);
+// Automated email reminders removed as requested.
 
 // =============================================
 // ARCHIVED & SETTINGS RENDERING
